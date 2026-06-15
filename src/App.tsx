@@ -1,4 +1,5 @@
 // src/App.tsx
+import { useEffect, useState } from "react";
 import {
   BookOpen,
   CalendarCheck,
@@ -15,8 +16,18 @@ import {
   useLocation,
 } from "react-router-dom";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import {
+  countFavoriteInquiryNotes,
+  countInquiryNotesByMonth,
+} from "./features/inquiry/inquiryRepository";
+import {
+  countFavoriteKnowledgeItems,
+  countKnowledgeItemsByMonth,
+} from "./features/knowledge/knowledgeRepository";
+import { countTags } from "./features/taxonomy/tagRepository";
 import { migrateDatabase } from "./lib/db/migrate";
+import { initializeSampleData } from "./lib/db/sampleData";
+import { currentMonthString } from "./lib/utils/date";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -26,6 +37,13 @@ const navItems = [
   { to: "/taxonomy", label: "タグ・カテゴリ", icon: Tags },
   { to: "/settings", label: "設定", icon: Settings },
 ];
+
+type DashboardStats = {
+  monthlyKnowledgeCount: number;
+  monthlyInquiryCount: number;
+  tagCount: number;
+  favoriteCount: number;
+};
 
 function Sidebar() {
   const location = useLocation();
@@ -86,26 +104,61 @@ function DashboardPage() {
     "checking",
   );
   const [dbError, setDbError] = useState<string>("");
+  const [sampleDataCreated, setSampleDataCreated] = useState<boolean>(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    monthlyKnowledgeCount: 0,
+    monthlyInquiryCount: 0,
+    tagCount: 0,
+    favoriteCount: 0,
+  });
 
   useEffect(() => {
     let isMounted = true;
 
-    migrateDatabase()
-      .then(() => {
-        if (isMounted) {
-          setDbStatus("ready");
-        }
-      })
-      .catch((error: unknown) => {
-        console.error(error);
+    async function initializeAppDatabase() {
+      await migrateDatabase();
 
-        if (isMounted) {
-          setDbStatus("error");
-          setDbError(
-            error instanceof Error ? error.message : "Unknown database error",
-          );
-        }
+      const created = await initializeSampleData();
+      const targetMonth = currentMonthString();
+
+      const [
+        monthlyKnowledgeCount,
+        monthlyInquiryCount,
+        tagCount,
+        favoriteKnowledgeCount,
+        favoriteInquiryCount,
+      ] = await Promise.all([
+        countKnowledgeItemsByMonth(targetMonth),
+        countInquiryNotesByMonth(targetMonth),
+        countTags(),
+        countFavoriteKnowledgeItems(),
+        countFavoriteInquiryNotes(),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setSampleDataCreated(created);
+      setStats({
+        monthlyKnowledgeCount,
+        monthlyInquiryCount,
+        tagCount,
+        favoriteCount: favoriteKnowledgeCount + favoriteInquiryCount,
       });
+      setDbStatus("ready");
+    }
+
+    initializeAppDatabase().catch((error: unknown) => {
+      console.error(error);
+
+      if (isMounted) {
+        setDbStatus("error");
+        setDbError(
+          error instanceof Error ? error.message : "Unknown database error",
+        );
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -127,9 +180,12 @@ function DashboardPage() {
           </p>
         )}
         {dbStatus === "ready" && (
-          <p className="mt-2 text-sm text-emerald-700">
-            SQLiteデータベースの初期化が完了しました。
-          </p>
+          <div className="mt-2 space-y-1 text-sm text-emerald-700">
+            <p>SQLiteデータベースの初期化が完了しました。</p>
+            {sampleDataCreated && (
+              <p>初回確認用のサンプルデータを投入しました。</p>
+            )}
+          </div>
         )}
         {dbStatus === "error" && (
           <div className="mt-2 text-sm text-red-700">
@@ -142,19 +198,27 @@ function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">今月のナレッジ</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">0</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">
+            {stats.monthlyKnowledgeCount}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">今月の問い合わせメモ</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">0</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">
+            {stats.monthlyInquiryCount}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">登録タグ</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">0</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">
+            {stats.tagCount}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">お気に入り</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">0</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">
+            {stats.favoriteCount}
+          </p>
         </div>
       </div>
 
