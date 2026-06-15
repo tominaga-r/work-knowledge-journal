@@ -1,9 +1,7 @@
 import { createInquiryNote } from "../../features/inquiry/inquiryRepository";
 import { createKnowledgeItem } from "../../features/knowledge/knowledgeRepository";
-import {
-  CategoryKind,
-  CategoryRecord,
-} from "../../features/taxonomy/categoryRepository";
+import { CategoryRecord } from "../../features/taxonomy/categoryRepository";
+import { CategoryKind } from "../../features/taxonomy/taxonomySchema";
 import { getDatabase } from "./client";
 
 const SAMPLE_DATA_SETTING_KEY = "sample_data_initialized";
