@@ -15,6 +15,8 @@ import {
   useLocation,
 } from "react-router-dom";
 import clsx from "clsx";
+import { useEffect, useState } from "react";
+import { migrateDatabase } from "./lib/db/migrate";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -80,12 +82,62 @@ function PageHeader({
 }
 
 function DashboardPage() {
+  const [dbStatus, setDbStatus] = useState<"checking" | "ready" | "error">(
+    "checking",
+  );
+  const [dbError, setDbError] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    migrateDatabase()
+      .then(() => {
+        if (isMounted) {
+          setDbStatus("ready");
+        }
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+
+        if (isMounted) {
+          setDbStatus("error");
+          setDbError(
+            error instanceof Error ? error.message : "Unknown database error",
+          );
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div>
       <PageHeader
         title="ダッシュボード"
         description="最近追加したナレッジ、問い合わせメモ、月次振り返りへの導線を表示します。"
       />
+
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-900">データベース状態</p>
+        {dbStatus === "checking" && (
+          <p className="mt-2 text-sm text-slate-500">
+            SQLiteデータベースを初期化しています...
+          </p>
+        )}
+        {dbStatus === "ready" && (
+          <p className="mt-2 text-sm text-emerald-700">
+            SQLiteデータベースの初期化が完了しました。
+          </p>
+        )}
+        {dbStatus === "error" && (
+          <div className="mt-2 text-sm text-red-700">
+            <p>SQLiteデータベースの初期化に失敗しました。</p>
+            <p className="mt-1 break-all">{dbError}</p>
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
