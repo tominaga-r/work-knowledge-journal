@@ -1,6 +1,8 @@
 import { getDatabase } from "../../lib/db/client";
 import { createId } from "../../lib/utils/id";
 import { nowIsoString } from "../../lib/utils/date";
+import { formatZodError } from "../../lib/utils/validation";
+import { createTagSchema } from "./taxonomySchema";
 
 export type TagRecord = {
   id: string;
@@ -20,12 +22,19 @@ export async function listTags(): Promise<TagRecord[]> {
 }
 
 export async function createTag(name: string): Promise<TagRecord> {
+  const result = createTagSchema.safeParse({ name });
+
+  if (!result.success) {
+    throw new Error(formatZodError("タグ", result.error));
+  }
+
+  const input = result.data;
   const db = await getDatabase();
   const now = nowIsoString();
 
   const tag: TagRecord = {
     id: createId("tag"),
-    name,
+    name: input.name,
     created_at: now,
     updated_at: now,
   };

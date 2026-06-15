@@ -1,8 +1,8 @@
 import { getDatabase } from "../../lib/db/client";
 import { createId } from "../../lib/utils/id";
 import { nowIsoString } from "../../lib/utils/date";
-
-export type CategoryKind = "knowledge" | "inquiry";
+import { formatZodError } from "../../lib/utils/validation";
+import { CategoryKind, createCategorySchema } from "./taxonomySchema";
 
 export type CategoryRecord = {
   id: string;
@@ -35,15 +35,22 @@ export async function createCategory(
   kind: CategoryKind,
   name: string,
 ): Promise<CategoryRecord> {
+  const result = createCategorySchema.safeParse({ kind, name });
+
+  if (!result.success) {
+    throw new Error(formatZodError("カテゴリ", result.error));
+  }
+
+  const input = result.data;
   const db = await getDatabase();
-  const tableName = getCategoryTable(kind);
+  const tableName = getCategoryTable(input.kind);
   const now = nowIsoString();
 
   const category: CategoryRecord = {
     id: createId(
-      kind === "knowledge" ? "knowledge_category" : "inquiry_category",
+      input.kind === "knowledge" ? "knowledge_category" : "inquiry_category",
     ),
-    name,
+    name: input.name,
     sort_order: 0,
     created_at: now,
     updated_at: now,

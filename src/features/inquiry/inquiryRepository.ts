@@ -1,13 +1,12 @@
 import { getDatabase } from "../../lib/db/client";
 import { createId } from "../../lib/utils/id";
 import { nowIsoString, todayDateString } from "../../lib/utils/date";
-
-export type InquirySource =
-  | "experience"
-  | "memo"
-  | "template"
-  | "imported"
-  | "other";
+import { formatZodError } from "../../lib/utils/validation";
+import {
+  CreateInquiryInput,
+  InquirySource,
+  createInquirySchema,
+} from "./inquirySchema";
 
 export type InquiryRecord = {
   id: string;
@@ -23,20 +22,19 @@ export type InquiryRecord = {
   updated_at: string;
 };
 
-export type CreateInquiryInput = {
-  title: string;
-  content: string;
-  responseNote?: string;
-  nextAction?: string;
-  occurredOn?: string;
-  inquiryCategoryId?: string | null;
-  source?: InquirySource;
-  isFavorite?: boolean;
-};
-
 export async function createInquiryNote(
-  input: CreateInquiryInput,
+  rawInput: CreateInquiryInput,
 ): Promise<InquiryRecord> {
+  const result = createInquirySchema.safeParse({
+    ...rawInput,
+    occurredOn: rawInput.occurredOn ?? todayDateString(),
+  });
+
+  if (!result.success) {
+    throw new Error(formatZodError("問い合わせメモ", result.error));
+  }
+
+  const input = result.data;
   const db = await getDatabase();
   const now = nowIsoString();
 
@@ -44,11 +42,11 @@ export async function createInquiryNote(
     id: createId("inquiry"),
     title: input.title,
     content: input.content,
-    response_note: input.responseNote ?? "",
-    next_action: input.nextAction ?? "",
+    response_note: input.responseNote,
+    next_action: input.nextAction,
     occurred_on: input.occurredOn ?? todayDateString(),
     inquiry_category_id: input.inquiryCategoryId ?? null,
-    source: input.source ?? "experience",
+    source: input.source,
     is_favorite: input.isFavorite ? 1 : 0,
     created_at: now,
     updated_at: now,

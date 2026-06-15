@@ -28,6 +28,7 @@ import { countTags } from "./features/taxonomy/tagRepository";
 import { migrateDatabase } from "./lib/db/migrate";
 import { initializeSampleData } from "./lib/db/sampleData";
 import { currentMonthString } from "./lib/utils/date";
+import { getErrorMessage } from "./lib/utils/error";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -154,9 +155,7 @@ function DashboardPage() {
 
       if (isMounted) {
         setDbStatus("error");
-        setDbError(
-          error instanceof Error ? error.message : "Unknown database error",
-        );
+        setDbError(getErrorMessage(error));
       }
     });
 

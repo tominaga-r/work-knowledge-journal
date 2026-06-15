@@ -1,25 +1,16 @@
 import { getDatabase } from "../../lib/db/client";
 import { createId } from "../../lib/utils/id";
 import { nowIsoString } from "../../lib/utils/date";
+import { formatZodError } from "../../lib/utils/validation";
+import {
+  CreateKnowledgeInput,
+  KnowledgeSource,
+  KnowledgeType,
+  createKnowledgeSchema,
+  knowledgeTypeValues,
+} from "./knowledgeSchema";
 
-export const knowledgeTypes = [
-  "PRODUCT_KNOWLEDGE",
-  "CUSTOMER_SERVICE_PHRASE",
-  "BUSINESS_PROCEDURE",
-  "FAQ",
-  "CAUTION",
-  "IMPROVEMENT",
-  "OTHER",
-] as const;
-
-export type KnowledgeType = (typeof knowledgeTypes)[number];
-
-export type KnowledgeSource =
-  | "training"
-  | "experience"
-  | "template"
-  | "imported"
-  | "other";
+export const knowledgeTypes = knowledgeTypeValues;
 
 export type KnowledgeRecord = {
   id: string;
@@ -33,18 +24,16 @@ export type KnowledgeRecord = {
   updated_at: string;
 };
 
-export type CreateKnowledgeInput = {
-  title: string;
-  content: string;
-  type: KnowledgeType;
-  knowledgeCategoryId?: string | null;
-  source?: KnowledgeSource;
-  isFavorite?: boolean;
-};
-
 export async function createKnowledgeItem(
-  input: CreateKnowledgeInput,
+  rawInput: CreateKnowledgeInput,
 ): Promise<KnowledgeRecord> {
+  const result = createKnowledgeSchema.safeParse(rawInput);
+
+  if (!result.success) {
+    throw new Error(formatZodError("ナレッジ", result.error));
+  }
+
+  const input = result.data;
   const db = await getDatabase();
   const now = nowIsoString();
 
@@ -54,7 +43,7 @@ export async function createKnowledgeItem(
     content: input.content,
     type: input.type,
     knowledge_category_id: input.knowledgeCategoryId ?? null,
-    source: input.source ?? "experience",
+    source: input.source,
     is_favorite: input.isFavorite ? 1 : 0,
     created_at: now,
     updated_at: now,
