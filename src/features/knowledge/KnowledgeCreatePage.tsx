@@ -6,6 +6,7 @@ import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
 import {
   KnowledgeSource,
   KnowledgeType,
+  createKnowledgeSchema,
   knowledgeSourceValues,
   knowledgeTypeValues,
 } from "./knowledgeSchema";
@@ -21,6 +22,8 @@ type FormState = {
   isFavorite: boolean;
 };
 
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
 const initialFormState: FormState = {
   title: "",
   content: "",
@@ -30,9 +33,33 @@ const initialFormState: FormState = {
   isFavorite: false,
 };
 
+function createFieldErrors(
+  issues: Array<{ path: Array<string | number | symbol>; message: string }>,
+): FieldErrors {
+  const errors: FieldErrors = {};
+
+  for (const issue of issues) {
+    const fieldName = issue.path[0];
+
+    if (
+      fieldName === "title" ||
+      fieldName === "content" ||
+      fieldName === "type" ||
+      fieldName === "knowledgeCategoryId" ||
+      fieldName === "source" ||
+      fieldName === "isFavorite"
+    ) {
+      errors[fieldName] = issue.message;
+    }
+  }
+
+  return errors;
+}
+
 export function KnowledgeCreatePage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(initialFormState);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">(
     "idle",
@@ -67,6 +94,16 @@ export function KnowledgeCreatePage() {
       ...current,
       [key]: value,
     }));
+
+    setFieldErrors((current) => ({
+      ...current,
+      [key]: undefined,
+    }));
+
+    if (status === "error") {
+      setStatus("idle");
+      setErrorMessage("");
+    }
   }
 
   async function handleSubmit() {
@@ -74,18 +111,30 @@ export function KnowledgeCreatePage() {
       return;
     }
 
+    const rawInput = {
+      title: form.title,
+      content: form.content,
+      type: form.type,
+      knowledgeCategoryId: form.knowledgeCategoryId || null,
+      source: form.source,
+      isFavorite: form.isFavorite,
+    };
+
+    const validationResult = createKnowledgeSchema.safeParse(rawInput);
+
+    if (!validationResult.success) {
+      setFieldErrors(createFieldErrors(validationResult.error.issues));
+      setStatus("error");
+      setErrorMessage("入力内容を確認してください。");
+      return;
+    }
+
     setStatus("saving");
     setErrorMessage("");
+    setFieldErrors({});
 
     try {
-      await createKnowledgeItem({
-        title: form.title,
-        content: form.content,
-        type: form.type,
-        knowledgeCategoryId: form.knowledgeCategoryId || null,
-        source: form.source,
-        isFavorite: form.isFavorite,
-      });
+      await createKnowledgeItem(validationResult.data);
 
       setStatus("success");
       navigate("/knowledge");
@@ -136,7 +185,7 @@ export function KnowledgeCreatePage() {
         </div>
       )}
 
-      {status === "error" && (
+      {status === "error" && errorMessage && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">ナレッジの保存に失敗しました。</p>
           <p className="mt-1 break-all">{errorMessage}</p>
@@ -163,12 +212,30 @@ export function KnowledgeCreatePage() {
               value={form.title}
               onChange={(event) => updateForm("title", event.target.value)}
               maxLength={120}
+              aria-invalid={fieldErrors.title ? "true" : "false"}
+              aria-describedby={
+                fieldErrors.title
+                  ? "knowledge-title-error"
+                  : "knowledge-title-help"
+              }
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
               placeholder="例: 商品の特徴を説明するときの基本フレーズ"
             />
-            <p className="mt-1 text-xs text-slate-500">
-              120文字以内。個人名や社外秘資料名は含めないでください。
-            </p>
+            {fieldErrors.title ? (
+              <p
+                id="knowledge-title-error"
+                className="mt-1 text-xs font-medium text-red-600"
+              >
+                {fieldErrors.title}
+              </p>
+            ) : (
+              <p
+                id="knowledge-title-help"
+                className="mt-1 text-xs text-slate-500"
+              >
+                120文字以内。個人名や社外秘資料名は含めないでください。
+              </p>
+            )}
           </div>
 
           <div>
@@ -184,12 +251,30 @@ export function KnowledgeCreatePage() {
               onChange={(event) => updateForm("content", event.target.value)}
               maxLength={8000}
               rows={10}
+              aria-invalid={fieldErrors.content ? "true" : "false"}
+              aria-describedby={
+                fieldErrors.content
+                  ? "knowledge-content-error"
+                  : "knowledge-content-help"
+              }
               className="mt-2 w-full resize-y rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
               placeholder="例: 機能だけでなく、利用場面とメリットを合わせて説明する。"
             />
-            <p className="mt-1 text-xs text-slate-500">
-              8000文字以内。匿名化・一般化した業務ナレッジとして記録します。
-            </p>
+            {fieldErrors.content ? (
+              <p
+                id="knowledge-content-error"
+                className="mt-1 text-xs font-medium text-red-600"
+              >
+                {fieldErrors.content}
+              </p>
+            ) : (
+              <p
+                id="knowledge-content-help"
+                className="mt-1 text-xs text-slate-500"
+              >
+                8000文字以内。匿名化・一般化した業務ナレッジとして記録します。
+              </p>
+            )}
           </div>
 
           <div className="grid gap-5 md:grid-cols-3">
@@ -206,6 +291,7 @@ export function KnowledgeCreatePage() {
                 onChange={(event) =>
                   updateForm("type", event.target.value as KnowledgeType)
                 }
+                aria-invalid={fieldErrors.type ? "true" : "false"}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
               >
                 {knowledgeTypeValues.map((type) => (
@@ -214,6 +300,11 @@ export function KnowledgeCreatePage() {
                   </option>
                 ))}
               </select>
+              {fieldErrors.type && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {fieldErrors.type}
+                </p>
+              )}
             </div>
 
             <div>
@@ -229,6 +320,9 @@ export function KnowledgeCreatePage() {
                 onChange={(event) =>
                   updateForm("knowledgeCategoryId", event.target.value)
                 }
+                aria-invalid={
+                  fieldErrors.knowledgeCategoryId ? "true" : "false"
+                }
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
               >
                 <option value="">未設定</option>
@@ -238,6 +332,11 @@ export function KnowledgeCreatePage() {
                   </option>
                 ))}
               </select>
+              {fieldErrors.knowledgeCategoryId && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {fieldErrors.knowledgeCategoryId}
+                </p>
+              )}
             </div>
 
             <div>
@@ -253,6 +352,7 @@ export function KnowledgeCreatePage() {
                 onChange={(event) =>
                   updateForm("source", event.target.value as KnowledgeSource)
                 }
+                aria-invalid={fieldErrors.source ? "true" : "false"}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
               >
                 {knowledgeSourceValues.map((source) => (
@@ -261,9 +361,15 @@ export function KnowledgeCreatePage() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-slate-500">
-                具体的な社内資料名ではなく、抽象的な由来を選びます。
-              </p>
+              {fieldErrors.source ? (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {fieldErrors.source}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">
+                  具体的な社内資料名ではなく、抽象的な由来を選びます。
+                </p>
+              )}
             </div>
           </div>
 
@@ -278,6 +384,11 @@ export function KnowledgeCreatePage() {
             />
             お気に入りにする
           </label>
+          {fieldErrors.isFavorite && (
+            <p className="-mt-3 text-xs font-medium text-red-600">
+              {fieldErrors.isFavorite}
+            </p>
+          )}
         </div>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-5 md:flex-row md:justify-end">
