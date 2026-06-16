@@ -29,6 +29,7 @@ import { migrateDatabase } from "./lib/db/migrate";
 import { initializeSampleData } from "./lib/db/sampleData";
 import { currentMonthString } from "./lib/utils/date";
 import { getErrorMessage } from "./lib/utils/error";
+import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -257,15 +258,7 @@ export default function App() {
             <div className="mx-auto max-w-6xl">
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
-                <Route
-                  path="/knowledge"
-                  element={
-                    <PlaceholderPage
-                      title="ナレッジ"
-                      description="商品知識、接客フレーズ、業務手順、FAQ、注意事項、改善メモを管理します。"
-                    />
-                  }
-                />
+                <Route path="/knowledge" element={<KnowledgeListPage />} />
                 <Route
                   path="/inquiries"
                   element={

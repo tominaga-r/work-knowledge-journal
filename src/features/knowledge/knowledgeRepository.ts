@@ -24,6 +24,11 @@ export type KnowledgeRecord = {
   updated_at: string;
 };
 
+export type KnowledgeListItem = KnowledgeRecord & {
+  category_name: string | null;
+  tag_names: string | null;
+};
+
 export async function createKnowledgeItem(
   rawInput: CreateKnowledgeInput,
 ): Promise<KnowledgeRecord> {
@@ -76,6 +81,44 @@ export async function createKnowledgeItem(
   );
 
   return item;
+}
+
+export async function listKnowledgeItems(): Promise<KnowledgeListItem[]> {
+  const db = await getDatabase();
+
+  return db.select<KnowledgeListItem[]>(
+    `SELECT
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name as category_name,
+      GROUP_CONCAT(tags.name, ',') as tag_names
+    FROM knowledge_items
+    LEFT JOIN knowledge_categories
+      ON knowledge_items.knowledge_category_id = knowledge_categories.id
+    LEFT JOIN knowledge_tags
+      ON knowledge_items.id = knowledge_tags.knowledge_id
+    LEFT JOIN tags
+      ON knowledge_tags.tag_id = tags.id
+    GROUP BY
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name
+    ORDER BY knowledge_items.updated_at DESC`,
+  );
 }
 
 export async function countKnowledgeItems(): Promise<number> {
