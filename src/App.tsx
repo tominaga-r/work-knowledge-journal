@@ -30,6 +30,7 @@ import { initializeSampleData } from "./lib/db/sampleData";
 import { currentMonthString } from "./lib/utils/date";
 import { getErrorMessage } from "./lib/utils/error";
 import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
+import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -259,6 +260,10 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/knowledge" element={<KnowledgeListPage />} />
+                <Route
+                  path="/knowledge/new"
+                  element={<KnowledgeCreatePage />}
+                />
                 <Route
                   path="/inquiries"
                   element={

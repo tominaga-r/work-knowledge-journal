@@ -5,6 +5,7 @@ import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
 import { createExcerpt } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
+import { Link } from "react-router-dom";
 
 function splitTagNames(tagNames: string | null): string[] {
   if (!tagNames) {
@@ -62,12 +63,12 @@ export function KnowledgeListPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
+        <Link
+          to="/knowledge/new"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
         >
           新規作成
-        </button>
+        </Link>
       </div>
 
       <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
