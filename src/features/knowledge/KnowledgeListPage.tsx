@@ -110,9 +110,12 @@ export function KnowledgeListPage() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-bold text-slate-900">
+                      <Link
+                        to={`/knowledge/${item.id}`}
+                        className="text-lg font-bold text-slate-900 transition hover:text-slate-600"
+                      >
                         {item.title}
-                      </h2>
+                      </Link>
 
                       {item.is_favorite === 1 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-800">
@@ -160,6 +163,15 @@ export function KnowledgeListPage() {
                 <div className="mt-4 grid gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500 md:grid-cols-2">
                   <p>作成日時: {formatDateTime(item.created_at)}</p>
                   <p>更新日時: {formatDateTime(item.updated_at)}</p>
+                </div>
+
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <Link
+                    to={`/knowledge/${item.id}`}
+                    className="text-sm font-semibold text-slate-900 transition hover:text-slate-600"
+                  >
+                    詳細を見る
+                  </Link>
                 </div>
               </article>
             );

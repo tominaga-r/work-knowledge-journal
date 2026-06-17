@@ -31,6 +31,7 @@ import { currentMonthString } from "./lib/utils/date";
 import { getErrorMessage } from "./lib/utils/error";
 import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
 import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
+import { KnowledgeDetailPage } from "./features/knowledge/KnowledgeDetailPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -263,6 +264,10 @@ export default function App() {
                 <Route
                   path="/knowledge/new"
                   element={<KnowledgeCreatePage />}
+                />
+                <Route
+                  path="/knowledge/:knowledgeId"
+                  element={<KnowledgeDetailPage />}
                 />
                 <Route
                   path="/inquiries"

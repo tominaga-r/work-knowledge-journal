@@ -121,6 +121,56 @@ export async function listKnowledgeItems(): Promise<KnowledgeListItem[]> {
   );
 }
 
+export async function getKnowledgeItemById(
+  id: string,
+): Promise<KnowledgeListItem | null> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    return null;
+  }
+
+  const db = await getDatabase();
+
+  const rows = await db.select<KnowledgeListItem[]>(
+    `SELECT
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name as category_name,
+      GROUP_CONCAT(tags.name, ',') as tag_names
+    FROM knowledge_items
+    LEFT JOIN knowledge_categories
+      ON knowledge_items.knowledge_category_id = knowledge_categories.id
+    LEFT JOIN knowledge_tags
+      ON knowledge_items.id = knowledge_tags.knowledge_id
+    LEFT JOIN tags
+      ON knowledge_tags.tag_id = tags.id
+    WHERE knowledge_items.id = $1
+    GROUP BY
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name
+    LIMIT 1`,
+    [normalizedId],
+  );
+
+  return rows[0] ?? null;
+}
+
 export async function countKnowledgeItems(): Promise<number> {
   const db = await getDatabase();
 
