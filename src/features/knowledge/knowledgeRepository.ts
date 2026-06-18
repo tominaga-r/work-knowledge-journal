@@ -235,6 +235,49 @@ export async function updateKnowledgeItem(
   return item;
 }
 
+export async function deleteKnowledgeItem(id: string): Promise<void> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    throw new Error("ナレッジIDが不正です。");
+  }
+
+  const db = await getDatabase();
+
+  const existingItem = await getKnowledgeItemById(normalizedId);
+
+  if (!existingItem) {
+    throw new Error("削除対象のナレッジが見つかりません。");
+  }
+
+  await db.execute("BEGIN IMMEDIATE TRANSACTION");
+
+  try {
+    await db.execute(
+      `DELETE FROM knowledge_tags
+       WHERE knowledge_id = $1`,
+      [normalizedId],
+    );
+
+    await db.execute(
+      `DELETE FROM knowledge_items
+       WHERE id = $1`,
+      [normalizedId],
+    );
+
+    await db.execute(
+      `DELETE FROM inquiry_knowledge_links
+   WHERE knowledge_id = $1`,
+      [normalizedId],
+    );
+
+    await db.execute("COMMIT");
+  } catch (error) {
+    await db.execute("ROLLBACK");
+    throw error;
+  }
+}
+
 export async function countKnowledgeItems(): Promise<number> {
   const db = await getDatabase();
 
