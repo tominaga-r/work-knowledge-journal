@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
-import { createKnowledgeItem } from "./knowledgeRepository";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
+import {
+  KnowledgeListItem,
+  getKnowledgeItemById,
+  updateKnowledgeItem,
+} from "./knowledgeRepository";
 import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
 import {
   KnowledgeSource,
@@ -56,38 +60,84 @@ function createFieldErrors(
   return errors;
 }
 
-export function KnowledgeCreatePage() {
+function createFormStateFromItem(item: KnowledgeListItem): FormState {
+  return {
+    title: item.title,
+    content: item.content,
+    type: item.type,
+    knowledgeCategoryId: item.knowledge_category_id ?? "",
+    source: item.source,
+    isFavorite: item.is_favorite === 1,
+  };
+}
+
+export function KnowledgeEditPage() {
+  const { knowledgeId } = useParams<{ knowledgeId: string }>();
   const navigate = useNavigate();
+
   const [form, setForm] = useState<FormState>(initialFormState);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
-  const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "saving" | "notFound" | "error"
+  >("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [categoryLoadError, setCategoryLoadError] = useState<string>("");
 
   useEffect(() => {
     let isMounted = true;
 
-    listCategories("knowledge")
-      .then((loadedCategories) => {
+    async function loadPageData() {
+      if (!knowledgeId) {
+        setStatus("notFound");
+        return;
+      }
+
+      const loadedItem = await getKnowledgeItemById(knowledgeId);
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (!loadedItem) {
+        setStatus("notFound");
+        return;
+      }
+
+      setForm(createFormStateFromItem(loadedItem));
+
+      try {
+        const loadedCategories = await listCategories("knowledge");
+
         if (isMounted) {
           setCategories(loadedCategories);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         console.error(error);
 
         if (isMounted) {
           setCategoryLoadError(getErrorMessage(error));
         }
-      });
+      }
+
+      if (isMounted) {
+        setStatus("ready");
+      }
+    }
+
+    loadPageData().catch((error: unknown) => {
+      console.error(error);
+
+      if (isMounted) {
+        setErrorMessage(getErrorMessage(error));
+        setStatus("error");
+      }
+    });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [knowledgeId]);
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({
@@ -101,13 +151,18 @@ export function KnowledgeCreatePage() {
     }));
 
     if (status === "error") {
-      setStatus("idle");
+      setStatus("ready");
       setErrorMessage("");
     }
   }
 
   async function handleSubmit() {
     if (status === "saving") {
+      return;
+    }
+
+    if (!knowledgeId) {
+      setStatus("notFound");
       return;
     }
 
@@ -124,7 +179,7 @@ export function KnowledgeCreatePage() {
 
     if (!validationResult.success) {
       setFieldErrors(createFieldErrors(validationResult.error.issues));
-      setStatus("idle");
+      setStatus("ready");
       setErrorMessage("");
       return;
     }
@@ -134,26 +189,96 @@ export function KnowledgeCreatePage() {
     setFieldErrors({});
 
     try {
-      await createKnowledgeItem(validationResult.data);
-
-      setStatus("success");
-      navigate("/knowledge");
+      await updateKnowledgeItem(knowledgeId, validationResult.data);
+      navigate(`/knowledge/${knowledgeId}`);
     } catch (error: unknown) {
       console.error(error);
-      setStatus("error");
+      setStatus("ready");
       setErrorMessage(getErrorMessage(error));
     }
+  }
+
+  if (status === "loading") {
+    return (
+      <div>
+        <div className="mb-6">
+          <Link
+            to="/knowledge"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+          >
+            <ArrowLeft size={16} />
+            ナレッジ一覧へ戻る
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
+          編集対象のナレッジを読み込んでいます...
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "notFound") {
+    return (
+      <div>
+        <div className="mb-6">
+          <Link
+            to="/knowledge"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+          >
+            <ArrowLeft size={16} />
+            ナレッジ一覧へ戻る
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-8">
+          <p className="text-sm font-semibold text-slate-900">
+            編集対象のナレッジが見つかりません。
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            削除済み、または存在しないナレッジIDの可能性があります。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div>
+        <div className="mb-6">
+          <Link
+            to="/knowledge"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+          >
+            <ArrowLeft size={16} />
+            ナレッジ一覧へ戻る
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          <p className="font-semibold">編集画面の読み込みに失敗しました。</p>
+          <p className="mt-2 break-all">{errorMessage}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            ナレッジ新規作成
-          </h1>
+          <Link
+            to={knowledgeId ? `/knowledge/${knowledgeId}` : "/knowledge"}
+            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+          >
+            <ArrowLeft size={16} />
+            詳細へ戻る
+          </Link>
+
+          <h1 className="text-2xl font-bold text-slate-900">ナレッジ編集</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            商品知識、接客フレーズ、業務手順、FAQ、注意事項、改善メモを登録します。
+            登録済みナレッジの内容を更新します。
           </p>
         </div>
 
@@ -169,10 +294,10 @@ export function KnowledgeCreatePage() {
         <div className="flex gap-3">
           <AlertTriangle className="mt-0.5 shrink-0" size={18} />
           <div>
-            <p className="font-semibold">入力前の注意</p>
+            <p className="font-semibold">編集時の注意</p>
             <p className="mt-1">
               顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報は入力しないでください。
-              sourceには具体的な社内資料名や顧客名を書かず、抽象的な由来だけを選択してください。
+              既存本文にそのような情報が含まれていないかも確認してください。
             </p>
           </div>
         </div>
@@ -185,9 +310,9 @@ export function KnowledgeCreatePage() {
         </div>
       )}
 
-      {status === "error" && errorMessage && (
+      {errorMessage && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">ナレッジの保存に失敗しました。</p>
+          <p className="font-semibold">ナレッジの更新に失敗しました。</p>
           <p className="mt-1 break-all">{errorMessage}</p>
         </div>
       )}
@@ -202,35 +327,34 @@ export function KnowledgeCreatePage() {
         <div className="grid gap-5">
           <div>
             <label
-              htmlFor="knowledge-title"
+              htmlFor="knowledge-edit-title"
               className="text-sm font-semibold text-slate-900"
             >
               タイトル <span className="text-red-600">*</span>
             </label>
             <input
-              id="knowledge-title"
+              id="knowledge-edit-title"
               value={form.title}
               onChange={(event) => updateForm("title", event.target.value)}
               maxLength={120}
               aria-invalid={fieldErrors.title ? "true" : "false"}
               aria-describedby={
                 fieldErrors.title
-                  ? "knowledge-title-error"
-                  : "knowledge-title-help"
+                  ? "knowledge-edit-title-error"
+                  : "knowledge-edit-title-help"
               }
               className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              placeholder="例: 商品の特徴を説明するときの基本フレーズ"
             />
             {fieldErrors.title ? (
               <p
-                id="knowledge-title-error"
+                id="knowledge-edit-title-error"
                 className="mt-1 text-xs font-medium text-red-600"
               >
                 {fieldErrors.title}
               </p>
             ) : (
               <p
-                id="knowledge-title-help"
+                id="knowledge-edit-title-help"
                 className="mt-1 text-xs text-slate-500"
               >
                 120文字以内。個人名や社外秘資料名は含めないでください。
@@ -240,13 +364,13 @@ export function KnowledgeCreatePage() {
 
           <div>
             <label
-              htmlFor="knowledge-content"
+              htmlFor="knowledge-edit-content"
               className="text-sm font-semibold text-slate-900"
             >
               本文 <span className="text-red-600">*</span>
             </label>
             <textarea
-              id="knowledge-content"
+              id="knowledge-edit-content"
               value={form.content}
               onChange={(event) => updateForm("content", event.target.value)}
               maxLength={8000}
@@ -254,22 +378,21 @@ export function KnowledgeCreatePage() {
               aria-invalid={fieldErrors.content ? "true" : "false"}
               aria-describedby={
                 fieldErrors.content
-                  ? "knowledge-content-error"
-                  : "knowledge-content-help"
+                  ? "knowledge-edit-content-error"
+                  : "knowledge-edit-content-help"
               }
               className="mt-2 w-full resize-y rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              placeholder="例: 機能だけでなく、利用場面とメリットを合わせて説明する。"
             />
             {fieldErrors.content ? (
               <p
-                id="knowledge-content-error"
+                id="knowledge-edit-content-error"
                 className="mt-1 text-xs font-medium text-red-600"
               >
                 {fieldErrors.content}
               </p>
             ) : (
               <p
-                id="knowledge-content-help"
+                id="knowledge-edit-content-help"
                 className="mt-1 text-xs text-slate-500"
               >
                 8000文字以内。匿名化・一般化した業務ナレッジとして記録します。
@@ -280,13 +403,13 @@ export function KnowledgeCreatePage() {
           <div className="grid gap-5 md:grid-cols-3">
             <div>
               <label
-                htmlFor="knowledge-type"
+                htmlFor="knowledge-edit-type"
                 className="text-sm font-semibold text-slate-900"
               >
                 種別
               </label>
               <select
-                id="knowledge-type"
+                id="knowledge-edit-type"
                 value={form.type}
                 onChange={(event) =>
                   updateForm("type", event.target.value as KnowledgeType)
@@ -309,13 +432,13 @@ export function KnowledgeCreatePage() {
 
             <div>
               <label
-                htmlFor="knowledge-category"
+                htmlFor="knowledge-edit-category"
                 className="text-sm font-semibold text-slate-900"
               >
                 カテゴリ
               </label>
               <select
-                id="knowledge-category"
+                id="knowledge-edit-category"
                 value={form.knowledgeCategoryId}
                 onChange={(event) =>
                   updateForm("knowledgeCategoryId", event.target.value)
@@ -341,13 +464,13 @@ export function KnowledgeCreatePage() {
 
             <div>
               <label
-                htmlFor="knowledge-source"
+                htmlFor="knowledge-edit-source"
                 className="text-sm font-semibold text-slate-900"
               >
                 source
               </label>
               <select
-                id="knowledge-source"
+                id="knowledge-edit-source"
                 value={form.source}
                 onChange={(event) =>
                   updateForm("source", event.target.value as KnowledgeSource)
@@ -393,7 +516,7 @@ export function KnowledgeCreatePage() {
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-5 md:flex-row md:justify-end">
           <Link
-            to="/knowledge"
+            to={knowledgeId ? `/knowledge/${knowledgeId}` : "/knowledge"}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             キャンセル
@@ -404,7 +527,7 @@ export function KnowledgeCreatePage() {
             disabled={status === "saving"}
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {status === "saving" ? "保存中..." : "保存する"}
+            {status === "saving" ? "保存中..." : "更新する"}
           </button>
         </div>
       </form>

@@ -32,6 +32,7 @@ import { getErrorMessage } from "./lib/utils/error";
 import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
 import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
 import { KnowledgeDetailPage } from "./features/knowledge/KnowledgeDetailPage";
+import { KnowledgeEditPage } from "./features/knowledge/KnowledgeEditPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -268,6 +269,10 @@ export default function App() {
                 <Route
                   path="/knowledge/:knowledgeId"
                   element={<KnowledgeDetailPage />}
+                />
+                <Route
+                  path="/knowledge/:knowledgeId/edit"
+                  element={<KnowledgeEditPage />}
                 />
                 <Route
                   path="/inquiries"

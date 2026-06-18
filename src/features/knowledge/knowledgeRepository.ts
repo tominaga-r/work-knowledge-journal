@@ -171,6 +171,70 @@ export async function getKnowledgeItemById(
   return rows[0] ?? null;
 }
 
+export async function updateKnowledgeItem(
+  id: string,
+  rawInput: CreateKnowledgeInput,
+): Promise<KnowledgeRecord> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    throw new Error("ナレッジIDが不正です。");
+  }
+
+  const result = createKnowledgeSchema.safeParse(rawInput);
+
+  if (!result.success) {
+    throw new Error(formatZodError("ナレッジ", result.error));
+  }
+
+  const input = result.data;
+  const db = await getDatabase();
+  const now = nowIsoString();
+
+  const existingItem = await getKnowledgeItemById(normalizedId);
+
+  if (!existingItem) {
+    throw new Error("更新対象のナレッジが見つかりません。");
+  }
+
+  const item: KnowledgeRecord = {
+    id: normalizedId,
+    title: input.title,
+    content: input.content,
+    type: input.type,
+    knowledge_category_id: input.knowledgeCategoryId ?? null,
+    source: input.source,
+    is_favorite: input.isFavorite ? 1 : 0,
+    created_at: existingItem.created_at,
+    updated_at: now,
+  };
+
+  await db.execute(
+    `UPDATE knowledge_items
+     SET
+       title = $1,
+       content = $2,
+       type = $3,
+       knowledge_category_id = $4,
+       source = $5,
+       is_favorite = $6,
+       updated_at = $7
+     WHERE id = $8`,
+    [
+      item.title,
+      item.content,
+      item.type,
+      item.knowledge_category_id,
+      item.source,
+      item.is_favorite,
+      item.updated_at,
+      item.id,
+    ],
+  );
+
+  return item;
+}
+
 export async function countKnowledgeItems(): Promise<number> {
   const db = await getDatabase();
 
