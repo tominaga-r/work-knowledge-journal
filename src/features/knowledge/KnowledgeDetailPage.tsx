@@ -91,8 +91,16 @@ export function KnowledgeDetailPage() {
       navigate("/knowledge");
     } catch (error: unknown) {
       console.error(error);
+
+      const message = getErrorMessage(error);
+
       setDeleteStatus("error");
-      setDeleteErrorMessage(getErrorMessage(error));
+      setDeleteErrorMessage(
+        message && message !== "{}"
+          ? message
+          : "削除処理中に不明なエラーが発生しました。",
+      );
+      setIsDeleteConfirmOpen(false);
     }
   }
 
@@ -289,7 +297,7 @@ export function KnowledgeDetailPage() {
 
             <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
               <p className="font-semibold">削除対象</p>
-              <p className="mt-1 break-words">{item.title}</p>
+              <p className="mt-1 wrap-break-word">{item.title}</p>
             </div>
 
             <div className="mt-5 flex flex-col gap-3 md:flex-row md:justify-end">
@@ -297,8 +305,6 @@ export function KnowledgeDetailPage() {
                 type="button"
                 onClick={() => {
                   setIsDeleteConfirmOpen(false);
-                  setDeleteStatus("idle");
-                  setDeleteErrorMessage("");
                 }}
                 disabled={deleteStatus === "deleting"}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
