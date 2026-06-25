@@ -35,7 +35,6 @@ async function replaceKnowledgeTags(
   tagIds: string[],
 ): Promise<void> {
   const db = await getDatabase();
-  const now = nowIsoString();
 
   const uniqueTagIds = Array.from(new Set(tagIds.map((tagId) => tagId.trim())))
     .filter(Boolean)
@@ -49,9 +48,9 @@ async function replaceKnowledgeTags(
 
   for (const tagId of uniqueTagIds) {
     await db.execute(
-      `INSERT INTO knowledge_tags (knowledge_id, tag_id, created_at)
-       VALUES ($1, $2, $3)`,
-      [knowledgeId, tagId, now],
+      `INSERT INTO knowledge_tags (knowledge_id, tag_id)
+       VALUES ($1, $2)`,
+      [knowledgeId, tagId],
     );
   }
 }
