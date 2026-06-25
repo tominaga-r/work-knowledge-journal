@@ -26,6 +26,12 @@ const optionalNullableIdSchema = z.preprocess((value) => {
   return value;
 }, z.string().trim().min(1).nullable().optional());
 
+const tagIdsSchema = z
+  .array(z.string().trim().min(1, "タグIDが不正です。"))
+  .max(20, "タグは20件以内で選択してください。")
+  .optional()
+  .default([]);
+
 export const createKnowledgeSchema = z.object({
   title: z
     .string()
@@ -41,6 +47,7 @@ export const createKnowledgeSchema = z.object({
   knowledgeCategoryId: optionalNullableIdSchema,
   source: z.enum(knowledgeSourceValues).default("experience"),
   isFavorite: z.boolean().optional().default(false),
+  tagIds: tagIdsSchema,
 });
 
 export type KnowledgeType = z.infer<typeof createKnowledgeSchema>["type"];

@@ -15,6 +15,7 @@ import {
   knowledgeTypeValues,
 } from "./knowledgeSchema";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
+import { TagRecord, listTags } from "../taxonomy/tagRepository";
 import { getErrorMessage } from "../../lib/utils/error";
 
 type FormState = {
@@ -24,6 +25,7 @@ type FormState = {
   knowledgeCategoryId: string;
   source: KnowledgeSource;
   isFavorite: boolean;
+  tagIds: string[];
 };
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
@@ -35,6 +37,7 @@ const initialFormState: FormState = {
   knowledgeCategoryId: "",
   source: "experience",
   isFavorite: false,
+  tagIds: [],
 };
 
 function createFieldErrors(
@@ -51,13 +54,25 @@ function createFieldErrors(
       fieldName === "type" ||
       fieldName === "knowledgeCategoryId" ||
       fieldName === "source" ||
-      fieldName === "isFavorite"
+      fieldName === "isFavorite" ||
+      fieldName === "tagIds"
     ) {
       errors[fieldName] = issue.message;
     }
   }
 
   return errors;
+}
+
+function splitIds(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
 }
 
 function createFormStateFromItem(item: KnowledgeListItem): FormState {
@@ -68,6 +83,7 @@ function createFormStateFromItem(item: KnowledgeListItem): FormState {
     knowledgeCategoryId: item.knowledge_category_id ?? "",
     source: item.source,
     isFavorite: item.is_favorite === 1,
+    tagIds: splitIds(item.tag_ids),
   };
 }
 
@@ -78,16 +94,23 @@ export function KnowledgeEditPage() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [tags, setTags] = useState<TagRecord[]>([]);
   const [status, setStatus] = useState<
     "loading" | "ready" | "saving" | "notFound" | "error"
   >("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [categoryLoadError, setCategoryLoadError] = useState<string>("");
+  const [tagLoadError, setTagLoadError] = useState<string>("");
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadPageData() {
+      setCategoryLoadError("");
+      setTagLoadError("");
+      setErrorMessage("");
+      setFieldErrors({});
+
       if (!knowledgeId) {
         setStatus("notFound");
         return;
@@ -117,6 +140,20 @@ export function KnowledgeEditPage() {
 
         if (isMounted) {
           setCategoryLoadError(getErrorMessage(error));
+        }
+      }
+
+      try {
+        const loadedTags = await listTags();
+
+        if (isMounted) {
+          setTags(loadedTags);
+        }
+      } catch (error: unknown) {
+        console.error(error);
+
+        if (isMounted) {
+          setTagLoadError(getErrorMessage(error));
         }
       }
 
@@ -156,6 +193,24 @@ export function KnowledgeEditPage() {
     }
   }
 
+  function toggleTag(tagId: string) {
+    setForm((current) => {
+      const exists = current.tagIds.includes(tagId);
+
+      return {
+        ...current,
+        tagIds: exists
+          ? current.tagIds.filter((currentTagId) => currentTagId !== tagId)
+          : [...current.tagIds, tagId],
+      };
+    });
+
+    setFieldErrors((current) => ({
+      ...current,
+      tagIds: undefined,
+    }));
+  }
+
   async function handleSubmit() {
     if (status === "saving") {
       return;
@@ -173,6 +228,7 @@ export function KnowledgeEditPage() {
       knowledgeCategoryId: form.knowledgeCategoryId || null,
       source: form.source,
       isFavorite: form.isFavorite,
+      tagIds: form.tagIds,
     };
 
     const validationResult = createKnowledgeSchema.safeParse(rawInput);
@@ -307,6 +363,13 @@ export function KnowledgeEditPage() {
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">カテゴリの読み込みに失敗しました。</p>
           <p className="mt-1 break-all">{categoryLoadError}</p>
+        </div>
+      )}
+
+      {tagLoadError && (
+        <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">タグの読み込みに失敗しました。</p>
+          <p className="mt-1 break-all">{tagLoadError}</p>
         </div>
       )}
 
@@ -494,6 +557,47 @@ export function KnowledgeEditPage() {
                 </p>
               )}
             </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-slate-900">タグ</p>
+            <p className="mt-1 text-xs text-slate-500">
+              既存タグから選択します。タグの追加・編集・削除はStep
+              5で実装します。
+            </p>
+
+            {tags.length === 0 ? (
+              <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                登録済みタグがありません。
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const isSelected = form.tagIds.includes(tag.id);
+
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className={
+                        isSelected
+                          ? "rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                          : "rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                      }
+                    >
+                      #{tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {fieldErrors.tagIds && (
+              <p className="mt-2 text-xs font-medium text-red-600">
+                {fieldErrors.tagIds}
+              </p>
+            )}
           </div>
 
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">

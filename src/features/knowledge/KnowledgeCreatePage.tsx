@@ -11,6 +11,7 @@ import {
   knowledgeTypeValues,
 } from "./knowledgeSchema";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
+import { TagRecord, listTags } from "../taxonomy/tagRepository";
 import { getErrorMessage } from "../../lib/utils/error";
 
 type FormState = {
@@ -20,6 +21,7 @@ type FormState = {
   knowledgeCategoryId: string;
   source: KnowledgeSource;
   isFavorite: boolean;
+  tagIds: string[];
 };
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
@@ -31,6 +33,7 @@ const initialFormState: FormState = {
   knowledgeCategoryId: "",
   source: "experience",
   isFavorite: false,
+  tagIds: [],
 };
 
 function createFieldErrors(
@@ -47,7 +50,8 @@ function createFieldErrors(
       fieldName === "type" ||
       fieldName === "knowledgeCategoryId" ||
       fieldName === "source" ||
-      fieldName === "isFavorite"
+      fieldName === "isFavorite" ||
+      fieldName === "tagIds"
     ) {
       errors[fieldName] = issue.message;
     }
@@ -61,28 +65,48 @@ export function KnowledgeCreatePage() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [tags, setTags] = useState<TagRecord[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">(
     "idle",
   );
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [categoryLoadError, setCategoryLoadError] = useState<string>("");
+  const [tagLoadError, setTagLoadError] = useState<string>("");
 
   useEffect(() => {
     let isMounted = true;
 
-    listCategories("knowledge")
-      .then((loadedCategories) => {
+    async function loadFormOptions() {
+      try {
+        const loadedCategories = await listCategories("knowledge");
+
         if (isMounted) {
           setCategories(loadedCategories);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         console.error(error);
 
         if (isMounted) {
           setCategoryLoadError(getErrorMessage(error));
         }
-      });
+      }
+
+      try {
+        const loadedTags = await listTags();
+
+        if (isMounted) {
+          setTags(loadedTags);
+        }
+      } catch (error: unknown) {
+        console.error(error);
+
+        if (isMounted) {
+          setTagLoadError(getErrorMessage(error));
+        }
+      }
+    }
+
+    void loadFormOptions();
 
     return () => {
       isMounted = false;
@@ -106,6 +130,24 @@ export function KnowledgeCreatePage() {
     }
   }
 
+  function toggleTag(tagId: string) {
+    setForm((current) => {
+      const exists = current.tagIds.includes(tagId);
+
+      return {
+        ...current,
+        tagIds: exists
+          ? current.tagIds.filter((currentTagId) => currentTagId !== tagId)
+          : [...current.tagIds, tagId],
+      };
+    });
+
+    setFieldErrors((current) => ({
+      ...current,
+      tagIds: undefined,
+    }));
+  }
+
   async function handleSubmit() {
     if (status === "saving") {
       return;
@@ -118,6 +160,7 @@ export function KnowledgeCreatePage() {
       knowledgeCategoryId: form.knowledgeCategoryId || null,
       source: form.source,
       isFavorite: form.isFavorite,
+      tagIds: form.tagIds,
     };
 
     const validationResult = createKnowledgeSchema.safeParse(rawInput);
@@ -182,6 +225,13 @@ export function KnowledgeCreatePage() {
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">カテゴリの読み込みに失敗しました。</p>
           <p className="mt-1 break-all">{categoryLoadError}</p>
+        </div>
+      )}
+
+      {tagLoadError && (
+        <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">タグの読み込みに失敗しました。</p>
+          <p className="mt-1 break-all">{tagLoadError}</p>
         </div>
       )}
 
@@ -371,6 +421,47 @@ export function KnowledgeCreatePage() {
                 </p>
               )}
             </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-slate-900">タグ</p>
+            <p className="mt-1 text-xs text-slate-500">
+              既存タグから選択します。タグの追加・編集・削除はStep
+              5で実装します。
+            </p>
+
+            {tags.length === 0 ? (
+              <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                登録済みタグがありません。
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const isSelected = form.tagIds.includes(tag.id);
+
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className={
+                        isSelected
+                          ? "rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                          : "rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                      }
+                    >
+                      #{tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {fieldErrors.tagIds && (
+              <p className="mt-2 text-xs font-medium text-red-600">
+                {fieldErrors.tagIds}
+              </p>
+            )}
           </div>
 
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">

@@ -1,6 +1,6 @@
 import { getDatabase } from "../../lib/db/client";
-import { createId } from "../../lib/utils/id";
 import { nowIsoString } from "../../lib/utils/date";
+import { createId } from "../../lib/utils/id";
 import { formatZodError } from "../../lib/utils/validation";
 import {
   CreateKnowledgeInput,
@@ -27,7 +27,34 @@ export type KnowledgeRecord = {
 export type KnowledgeListItem = KnowledgeRecord & {
   category_name: string | null;
   tag_names: string | null;
+  tag_ids: string | null;
 };
+
+async function replaceKnowledgeTags(
+  knowledgeId: string,
+  tagIds: string[],
+): Promise<void> {
+  const db = await getDatabase();
+  const now = nowIsoString();
+
+  const uniqueTagIds = Array.from(new Set(tagIds.map((tagId) => tagId.trim())))
+    .filter(Boolean)
+    .slice(0, 20);
+
+  await db.execute(
+    `DELETE FROM knowledge_tags
+     WHERE knowledge_id = $1`,
+    [knowledgeId],
+  );
+
+  for (const tagId of uniqueTagIds) {
+    await db.execute(
+      `INSERT INTO knowledge_tags (knowledge_id, tag_id, created_at)
+       VALUES ($1, $2, $3)`,
+      [knowledgeId, tagId, now],
+    );
+  }
+}
 
 export async function createKnowledgeItem(
   rawInput: CreateKnowledgeInput,
@@ -80,6 +107,8 @@ export async function createKnowledgeItem(
     ],
   );
 
+  await replaceKnowledgeTags(item.id, input.tagIds);
+
   return item;
 }
 
@@ -98,7 +127,8 @@ export async function listKnowledgeItems(): Promise<KnowledgeListItem[]> {
       knowledge_items.created_at,
       knowledge_items.updated_at,
       knowledge_categories.name as category_name,
-      GROUP_CONCAT(tags.name, ',') as tag_names
+      GROUP_CONCAT(tags.name, ',') as tag_names,
+      GROUP_CONCAT(tags.id, ',') as tag_ids
     FROM knowledge_items
     LEFT JOIN knowledge_categories
       ON knowledge_items.knowledge_category_id = knowledge_categories.id
@@ -144,7 +174,8 @@ export async function getKnowledgeItemById(
       knowledge_items.created_at,
       knowledge_items.updated_at,
       knowledge_categories.name as category_name,
-      GROUP_CONCAT(tags.name, ',') as tag_names
+      GROUP_CONCAT(tags.name, ',') as tag_names,
+      GROUP_CONCAT(tags.id, ',') as tag_ids
     FROM knowledge_items
     LEFT JOIN knowledge_categories
       ON knowledge_items.knowledge_category_id = knowledge_categories.id
@@ -231,6 +262,8 @@ export async function updateKnowledgeItem(
       item.id,
     ],
   );
+
+  await replaceKnowledgeTags(item.id, input.tagIds);
 
   return item;
 }
