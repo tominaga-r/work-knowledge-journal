@@ -33,6 +33,7 @@ import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
 import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
 import { KnowledgeDetailPage } from "./features/knowledge/KnowledgeDetailPage";
 import { KnowledgeEditPage } from "./features/knowledge/KnowledgeEditPage";
+import { TaxonomyPage } from "./features/taxonomy/TaxonomyPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -292,15 +293,7 @@ export default function App() {
                     />
                   }
                 />
-                <Route
-                  path="/taxonomy"
-                  element={
-                    <PlaceholderPage
-                      title="タグ・カテゴリ"
-                      description="ナレッジ用カテゴリ、問い合わせ用カテゴリ、共通タグを管理します。"
-                    />
-                  }
-                />
+                <Route path="/taxonomy" element={<TaxonomyPage />} />
                 <Route
                   path="/settings"
                   element={
