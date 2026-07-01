@@ -158,6 +158,167 @@ export async function listInquiryNotes(): Promise<InquiryListItem[]> {
   );
 }
 
+export async function getInquiryNoteById(
+  id: string,
+): Promise<InquiryListItem | null> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    return null;
+  }
+
+  const db = await getDatabase();
+
+  const rows = await db.select<InquiryListItem[]>(
+    `SELECT
+      inquiry_notes.id,
+      inquiry_notes.title,
+      inquiry_notes.content,
+      inquiry_notes.response_note,
+      inquiry_notes.next_action,
+      inquiry_notes.occurred_on,
+      inquiry_notes.inquiry_category_id,
+      inquiry_notes.source,
+      inquiry_notes.is_favorite,
+      inquiry_notes.created_at,
+      inquiry_notes.updated_at,
+      inquiry_categories.name as category_name,
+      GROUP_CONCAT(tags.name, ',') as tag_names,
+      GROUP_CONCAT(tags.id, ',') as tag_ids
+    FROM inquiry_notes
+    LEFT JOIN inquiry_categories
+      ON inquiry_notes.inquiry_category_id = inquiry_categories.id
+    LEFT JOIN inquiry_tags
+      ON inquiry_notes.id = inquiry_tags.inquiry_id
+    LEFT JOIN tags
+      ON inquiry_tags.tag_id = tags.id
+    WHERE inquiry_notes.id = $1
+    GROUP BY
+      inquiry_notes.id,
+      inquiry_notes.title,
+      inquiry_notes.content,
+      inquiry_notes.response_note,
+      inquiry_notes.next_action,
+      inquiry_notes.occurred_on,
+      inquiry_notes.inquiry_category_id,
+      inquiry_notes.source,
+      inquiry_notes.is_favorite,
+      inquiry_notes.created_at,
+      inquiry_notes.updated_at,
+      inquiry_categories.name
+    LIMIT 1`,
+    [normalizedId],
+  );
+
+  return rows[0] ?? null;
+}
+
+export async function updateInquiryNote(
+  id: string,
+  rawInput: CreateInquiryInput,
+): Promise<InquiryRecord> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    throw new Error("問い合わせメモIDが不正です。");
+  }
+
+  const result = createInquirySchema.safeParse(rawInput);
+
+  if (!result.success) {
+    throw new Error(formatZodError("問い合わせメモ", result.error));
+  }
+
+  const input = result.data;
+  const db = await getDatabase();
+  const now = nowIsoString();
+
+  const existingItem = await getInquiryNoteById(normalizedId);
+
+  if (!existingItem) {
+    throw new Error("更新対象の問い合わせメモが見つかりません。");
+  }
+
+  const item: InquiryRecord = {
+    id: normalizedId,
+    title: input.title,
+    content: input.content,
+    response_note: input.responseNote,
+    next_action: input.nextAction,
+    occurred_on: input.occurredOn ?? todayDateString(),
+    inquiry_category_id: input.inquiryCategoryId ?? null,
+    source: input.source,
+    is_favorite: input.isFavorite ? 1 : 0,
+    created_at: existingItem.created_at,
+    updated_at: now,
+  };
+
+  await db.execute(
+    `UPDATE inquiry_notes
+     SET
+       title = $1,
+       content = $2,
+       response_note = $3,
+       next_action = $4,
+       occurred_on = $5,
+       inquiry_category_id = $6,
+       source = $7,
+       is_favorite = $8,
+       updated_at = $9
+     WHERE id = $10`,
+    [
+      item.title,
+      item.content,
+      item.response_note,
+      item.next_action,
+      item.occurred_on,
+      item.inquiry_category_id,
+      item.source,
+      item.is_favorite,
+      item.updated_at,
+      item.id,
+    ],
+  );
+
+  await replaceInquiryTags(item.id, input.tagIds);
+
+  return item;
+}
+
+export async function deleteInquiryNote(id: string): Promise<void> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    throw new Error("問い合わせメモIDが不正です。");
+  }
+
+  const db = await getDatabase();
+
+  const existingItem = await getInquiryNoteById(normalizedId);
+
+  if (!existingItem) {
+    throw new Error("削除対象の問い合わせメモが見つかりません。");
+  }
+
+  await db.execute(
+    `DELETE FROM inquiry_tags
+     WHERE inquiry_id = $1`,
+    [normalizedId],
+  );
+
+  await db.execute(
+    `DELETE FROM inquiry_knowledge_links
+     WHERE inquiry_id = $1`,
+    [normalizedId],
+  );
+
+  await db.execute(
+    `DELETE FROM inquiry_notes
+     WHERE id = $1`,
+    [normalizedId],
+  );
+}
+
 export async function countInquiryNotes(): Promise<number> {
   const db = await getDatabase();
 

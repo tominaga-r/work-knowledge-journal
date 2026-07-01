@@ -118,9 +118,13 @@ export function InquiryListPage() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="wrap-break-word text-lg font-bold text-slate-900">
+                      <Link
+                        to={`/inquiries/${item.id}`}
+                        className="wrap-break-word text-lg font-bold text-slate-900 transition hover:text-slate-600"
+                      >
                         {item.title}
-                      </h2>
+                      </Link>
+
                       {item.is_favorite === 1 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
                           <Star size={13} />
@@ -175,9 +179,18 @@ export function InquiryListPage() {
                   )}
                 </div>
 
-                <div className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                  作成: {formatDateTime(item.created_at)} / 更新:{" "}
-                  {formatDateTime(item.updated_at)}
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500 md:flex-row md:items-center md:justify-between">
+                  <p>
+                    作成: {formatDateTime(item.created_at)} / 更新:{" "}
+                    {formatDateTime(item.updated_at)}
+                  </p>
+
+                  <Link
+                    to={`/inquiries/${item.id}`}
+                    className="text-sm font-semibold text-slate-700 transition hover:text-slate-900"
+                  >
+                    詳細を見る
+                  </Link>
                 </div>
               </article>
             );

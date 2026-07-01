@@ -36,6 +36,8 @@ import { KnowledgeEditPage } from "./features/knowledge/KnowledgeEditPage";
 import { TaxonomyPage } from "./features/taxonomy/TaxonomyPage";
 import { InquiryListPage } from "./features/inquiry/InquiryListPage";
 import { InquiryCreatePage } from "./features/inquiry/InquiryCreatePage";
+import { InquiryDetailPage } from "./features/inquiry/InquiryDetailPage";
+import { InquiryEditPage } from "./features/inquiry/InquiryEditPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -279,6 +281,14 @@ export default function App() {
                 />
                 <Route path="/inquiries" element={<InquiryListPage />} />
                 <Route path="/inquiries/new" element={<InquiryCreatePage />} />
+                <Route
+                  path="/inquiries/:inquiryId"
+                  element={<InquiryDetailPage />}
+                />
+                <Route
+                  path="/inquiries/:inquiryId/edit"
+                  element={<InquiryEditPage />}
+                />
                 <Route
                   path="/monthly-reviews"
                   element={
