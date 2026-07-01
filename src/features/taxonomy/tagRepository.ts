@@ -31,7 +31,7 @@ export async function createTag(name: string): Promise<TagRecord> {
   });
 
   if (!result.success) {
-    throw new Error(formatZodError("タグ", result.error));
+    throw new Error(formatZodError("共通タグ", result.error));
   }
 
   const input = result.data;
@@ -63,7 +63,7 @@ export async function updateTag(id: string, name: string): Promise<TagRecord> {
   const normalizedId = id.trim();
 
   if (!normalizedId) {
-    throw new Error("タグIDが不正です。");
+    throw new Error("共通タグIDが不正です。");
   }
 
   const result = createTagSchema.safeParse({
@@ -71,7 +71,7 @@ export async function updateTag(id: string, name: string): Promise<TagRecord> {
   });
 
   if (!result.success) {
-    throw new Error(formatZodError("タグ", result.error));
+    throw new Error(formatZodError("共通タグ", result.error));
   }
 
   const input = result.data;
@@ -81,7 +81,7 @@ export async function updateTag(id: string, name: string): Promise<TagRecord> {
   const existingTag = await getTagById(normalizedId);
 
   if (!existingTag) {
-    throw new Error("更新対象のタグが見つかりません。");
+    throw new Error("更新対象の共通タグが見つかりません。");
   }
 
   await db.execute(
@@ -104,7 +104,7 @@ export async function deleteTag(id: string): Promise<void> {
   const normalizedId = id.trim();
 
   if (!normalizedId) {
-    throw new Error("タグIDが不正です。");
+    throw new Error("共通タグIDが不正です。");
   }
 
   const db = await getDatabase();
@@ -112,14 +112,14 @@ export async function deleteTag(id: string): Promise<void> {
   const existingTag = await getTagById(normalizedId);
 
   if (!existingTag) {
-    throw new Error("削除対象のタグが見つかりません。");
+    throw new Error("削除対象の共通タグが見つかりません。");
   }
 
   const usageCount = await countTagUsage(normalizedId);
 
   if (usageCount > 0) {
     throw new Error(
-      "このタグは使用中のため削除できません。先に紐付いているデータからタグを外してください。",
+      "この共通タグは使用中のため削除できません。先に紐付いているデータから共通タグを外してください。",
     );
   }
 

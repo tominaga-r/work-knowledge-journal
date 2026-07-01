@@ -62,7 +62,7 @@ export async function createCategory(
   });
 
   if (!result.success) {
-    throw new Error(formatZodError("カテゴリ", result.error));
+    throw new Error(formatZodError("分類", result.error));
   }
 
   const input = result.data;
@@ -99,7 +99,7 @@ export async function updateCategory(
   const normalizedId = id.trim();
 
   if (!normalizedId) {
-    throw new Error("カテゴリIDが不正です。");
+    throw new Error("分類IDが不正です。");
   }
 
   const result = createCategorySchema.safeParse({
@@ -108,7 +108,7 @@ export async function updateCategory(
   });
 
   if (!result.success) {
-    throw new Error(formatZodError("カテゴリ", result.error));
+    throw new Error(formatZodError("分類", result.error));
   }
 
   const input = result.data;
@@ -119,7 +119,7 @@ export async function updateCategory(
   const existingCategory = await getCategoryById(input.kind, normalizedId);
 
   if (!existingCategory) {
-    throw new Error("更新対象のカテゴリが見つかりません。");
+    throw new Error("更新対象の分類が見つかりません。");
   }
 
   await db.execute(
@@ -145,7 +145,7 @@ export async function deleteCategory(
   const normalizedId = id.trim();
 
   if (!normalizedId) {
-    throw new Error("カテゴリIDが不正です。");
+    throw new Error("分類IDが不正です。");
   }
 
   const db = await getDatabase();
@@ -156,14 +156,14 @@ export async function deleteCategory(
   const existingCategory = await getCategoryById(kind, normalizedId);
 
   if (!existingCategory) {
-    throw new Error("削除対象のカテゴリが見つかりません。");
+    throw new Error("削除対象の分類が見つかりません。");
   }
 
   const usageCount = await countCategoryUsage(kind, normalizedId);
 
   if (usageCount > 0) {
     throw new Error(
-      "このカテゴリは使用中のため削除できません。先に紐付いているデータのカテゴリを変更してください。",
+      "この分類は使用中のため削除できません。先に紐付いているデータの分類を変更してください。",
     );
   }
 

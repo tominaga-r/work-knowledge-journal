@@ -34,13 +34,15 @@ import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
 import { KnowledgeDetailPage } from "./features/knowledge/KnowledgeDetailPage";
 import { KnowledgeEditPage } from "./features/knowledge/KnowledgeEditPage";
 import { TaxonomyPage } from "./features/taxonomy/TaxonomyPage";
+import { InquiryListPage } from "./features/inquiry/InquiryListPage";
+import { InquiryCreatePage } from "./features/inquiry/InquiryCreatePage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
   { to: "/knowledge", label: "ナレッジ", icon: BookOpen },
   { to: "/inquiries", label: "問い合わせメモ", icon: MessageSquareText },
   { to: "/monthly-reviews", label: "月次振り返り", icon: CalendarCheck },
-  { to: "/taxonomy", label: "タグ・カテゴリ", icon: Tags },
+  { to: "/taxonomy", label: "分類管理 ", icon: Tags },
   { to: "/settings", label: "設定", icon: Settings },
 ];
 
@@ -213,7 +215,7 @@ function DashboardPage() {
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">登録タグ</p>
+          <p className="text-sm text-slate-500">登録共通タグ</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">
             {stats.tagCount}
           </p>
@@ -275,15 +277,8 @@ export default function App() {
                   path="/knowledge/:knowledgeId/edit"
                   element={<KnowledgeEditPage />}
                 />
-                <Route
-                  path="/inquiries"
-                  element={
-                    <PlaceholderPage
-                      title="問い合わせメモ"
-                      description="問い合わせ内容そのものではなく、匿名化した対応パターンや学びを管理します。"
-                    />
-                  }
-                />
+                <Route path="/inquiries" element={<InquiryListPage />} />
+                <Route path="/inquiries/new" element={<InquiryCreatePage />} />
                 <Route
                   path="/monthly-reviews"
                   element={

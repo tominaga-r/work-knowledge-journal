@@ -137,7 +137,7 @@ export function KnowledgeListPage() {
                   </span>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    カテゴリ: {item.category_name ?? "未設定"}
+                    分類: {item.category_name ?? "未設定"}
                   </span>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
@@ -156,7 +156,9 @@ export function KnowledgeListPage() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-slate-400">タグ未設定</span>
+                    <span className="text-xs text-slate-400">
+                      共通タグ未設定
+                    </span>
                   )}
                 </div>
 

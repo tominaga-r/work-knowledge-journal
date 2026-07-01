@@ -71,14 +71,14 @@ function getCategoryFieldName(kind: CategoryKind) {
 
 function getItemKindLabel(kind: EditableItemKind): string {
   if (kind === "knowledge") {
-    return "ナレッジ用カテゴリ";
+    return "ナレッジ分類";
   }
 
   if (kind === "inquiry") {
-    return "問い合わせ用カテゴリ";
+    return "問い合わせ分類";
   }
 
-  return "タグ";
+  return "共通共通タグ";
 }
 
 export function TaxonomyPage() {
@@ -245,7 +245,7 @@ export function TaxonomyPage() {
         ...current,
         [fieldName]:
           validationResult.error.issues[0]?.message ??
-          "カテゴリ名を確認してください。",
+          "分類名を確認してください。",
       }));
       return;
     }
@@ -286,7 +286,7 @@ export function TaxonomyPage() {
         ...current,
         tagName:
           validationResult.error.issues[0]?.message ??
-          "タグ名を確認してください。",
+          "共通タグ名を確認してください。",
       }));
       return;
     }
@@ -399,7 +399,7 @@ export function TaxonomyPage() {
       <div>
         <PageTitle />
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
-          タグ・カテゴリを読み込んでいます...
+          分類管理を読み込んでいます...
         </div>
       </div>
     );
@@ -415,7 +415,7 @@ export function TaxonomyPage() {
           <div>
             <p className="font-semibold">登録・編集時の注意</p>
             <p className="mt-1">
-              カテゴリ名・タグ名には、顧客名、社外秘資料名、非公開の商品名などを含めないでください。
+              分類名・共通タグ名には、顧客名、社外秘資料名、非公開の商品名などを含めないでください。
               検索・分類しやすい一般化された名称にします。
             </p>
           </div>
@@ -424,14 +424,14 @@ export function TaxonomyPage() {
 
       {status === "error" && errorMessage && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">タグ・カテゴリの処理に失敗しました。</p>
+          <p className="font-semibold">分類管理の処理に失敗しました。</p>
           <p className="mt-1 break-all">{errorMessage}</p>
         </div>
       )}
 
       <div className="grid gap-5 xl:grid-cols-3">
         <TaxonomyCard
-          title="ナレッジ用カテゴリ"
+          title="ナレッジ分類"
           description="商品知識、業務手順、接客フレーズなどの分類に使います。"
           inputId="knowledge-category-name"
           inputValue={categoryForm.knowledgeCategoryName}
@@ -444,7 +444,7 @@ export function TaxonomyPage() {
           onSubmit={() => {
             void handleCreateCategory("knowledge");
           }}
-          emptyMessage="ナレッジ用カテゴリがありません。"
+          emptyMessage="ナレッジ分類がありません。"
           items={knowledgeCategories.map((category) => ({
             id: category.id,
             name: category.name,
@@ -466,8 +466,8 @@ export function TaxonomyPage() {
         />
 
         <TaxonomyCard
-          title="問い合わせ用カテゴリ"
-          description="問い合わせメモの分類に使います。"
+          title="問い合わせ分類"
+          description="問い合わせ内容や対応種別など、問い合わせメモの大分類に使います。"
           inputId="inquiry-category-name"
           inputValue={categoryForm.inquiryCategoryName}
           inputPlaceholder="例: 問い合わせ対応"
@@ -477,7 +477,7 @@ export function TaxonomyPage() {
           onSubmit={() => {
             void handleCreateCategory("inquiry");
           }}
-          emptyMessage="問い合わせ用カテゴリがありません。"
+          emptyMessage="問い合わせ分類がありません。"
           items={inquiryCategories.map((category) => ({
             id: category.id,
             name: category.name,
@@ -499,8 +499,8 @@ export function TaxonomyPage() {
         />
 
         <TaxonomyCard
-          title="タグ"
-          description="ナレッジと問い合わせメモの横断的な分類に使います。"
+          title="共通タグ"
+          description="ナレッジと問い合わせメモを横断して整理・関連付けるために使います。"
           inputId="tag-name"
           inputValue={tagForm.tagName}
           inputPlaceholder="例: 確認事項"
@@ -510,7 +510,7 @@ export function TaxonomyPage() {
           onSubmit={() => {
             void handleCreateTag();
           }}
-          emptyMessage="タグがありません。"
+          emptyMessage="共通タグがありません。"
           items={tags.map((tag) => ({
             id: tag.id,
             name: tag.name,
@@ -673,9 +673,9 @@ export function TaxonomyPage() {
 function PageTitle() {
   return (
     <div className="mb-6">
-      <h1 className="text-2xl font-bold text-slate-900">タグ・カテゴリ</h1>
+      <h1 className="text-2xl font-bold text-slate-900">分類管理</h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        ナレッジ用カテゴリ、問い合わせ用カテゴリ、共通タグを管理します。
+        ナレッジ分類、問い合わせ分類、共通共通タグを管理します。
       </p>
     </div>
   );

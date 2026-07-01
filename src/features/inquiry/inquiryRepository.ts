@@ -1,6 +1,6 @@
 import { getDatabase } from "../../lib/db/client";
-import { createId } from "../../lib/utils/id";
 import { nowIsoString, todayDateString } from "../../lib/utils/date";
+import { createId } from "../../lib/utils/id";
 import { formatZodError } from "../../lib/utils/validation";
 import {
   CreateInquiryInput,
@@ -22,13 +22,41 @@ export type InquiryRecord = {
   updated_at: string;
 };
 
+export type InquiryListItem = InquiryRecord & {
+  category_name: string | null;
+  tag_names: string | null;
+  tag_ids: string | null;
+};
+
+async function replaceInquiryTags(
+  inquiryId: string,
+  tagIds: string[],
+): Promise<void> {
+  const db = await getDatabase();
+
+  const uniqueTagIds = Array.from(new Set(tagIds.map((tagId) => tagId.trim())))
+    .filter(Boolean)
+    .slice(0, 20);
+
+  await db.execute(
+    `DELETE FROM inquiry_tags
+     WHERE inquiry_id = $1`,
+    [inquiryId],
+  );
+
+  for (const tagId of uniqueTagIds) {
+    await db.execute(
+      `INSERT INTO inquiry_tags (inquiry_id, tag_id)
+       VALUES ($1, $2)`,
+      [inquiryId, tagId],
+    );
+  }
+}
+
 export async function createInquiryNote(
   rawInput: CreateInquiryInput,
 ): Promise<InquiryRecord> {
-  const result = createInquirySchema.safeParse({
-    ...rawInput,
-    occurredOn: rawInput.occurredOn ?? todayDateString(),
-  });
+  const result = createInquirySchema.safeParse(rawInput);
 
   if (!result.success) {
     throw new Error(formatZodError("問い合わせメモ", result.error));
@@ -38,7 +66,7 @@ export async function createInquiryNote(
   const db = await getDatabase();
   const now = nowIsoString();
 
-  const inquiry: InquiryRecord = {
+  const item: InquiryRecord = {
     id: createId("inquiry"),
     title: input.title,
     content: input.content,
@@ -68,21 +96,66 @@ export async function createInquiryNote(
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
-      inquiry.id,
-      inquiry.title,
-      inquiry.content,
-      inquiry.response_note,
-      inquiry.next_action,
-      inquiry.occurred_on,
-      inquiry.inquiry_category_id,
-      inquiry.source,
-      inquiry.is_favorite,
-      inquiry.created_at,
-      inquiry.updated_at,
+      item.id,
+      item.title,
+      item.content,
+      item.response_note,
+      item.next_action,
+      item.occurred_on,
+      item.inquiry_category_id,
+      item.source,
+      item.is_favorite,
+      item.created_at,
+      item.updated_at,
     ],
   );
 
-  return inquiry;
+  await replaceInquiryTags(item.id, input.tagIds);
+
+  return item;
+}
+
+export async function listInquiryNotes(): Promise<InquiryListItem[]> {
+  const db = await getDatabase();
+
+  return db.select<InquiryListItem[]>(
+    `SELECT
+      inquiry_notes.id,
+      inquiry_notes.title,
+      inquiry_notes.content,
+      inquiry_notes.response_note,
+      inquiry_notes.next_action,
+      inquiry_notes.occurred_on,
+      inquiry_notes.inquiry_category_id,
+      inquiry_notes.source,
+      inquiry_notes.is_favorite,
+      inquiry_notes.created_at,
+      inquiry_notes.updated_at,
+      inquiry_categories.name as category_name,
+      GROUP_CONCAT(tags.name, ',') as tag_names,
+      GROUP_CONCAT(tags.id, ',') as tag_ids
+    FROM inquiry_notes
+    LEFT JOIN inquiry_categories
+      ON inquiry_notes.inquiry_category_id = inquiry_categories.id
+    LEFT JOIN inquiry_tags
+      ON inquiry_notes.id = inquiry_tags.inquiry_id
+    LEFT JOIN tags
+      ON inquiry_tags.tag_id = tags.id
+    GROUP BY
+      inquiry_notes.id,
+      inquiry_notes.title,
+      inquiry_notes.content,
+      inquiry_notes.response_note,
+      inquiry_notes.next_action,
+      inquiry_notes.occurred_on,
+      inquiry_notes.inquiry_category_id,
+      inquiry_notes.source,
+      inquiry_notes.is_favorite,
+      inquiry_notes.created_at,
+      inquiry_notes.updated_at,
+      inquiry_categories.name
+    ORDER BY inquiry_notes.occurred_on DESC, inquiry_notes.updated_at DESC`,
+  );
 }
 
 export async function countInquiryNotes(): Promise<number> {

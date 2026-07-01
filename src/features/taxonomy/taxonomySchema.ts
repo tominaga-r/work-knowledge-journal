@@ -7,16 +7,16 @@ export const createCategorySchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "カテゴリ名は必須です。")
-    .max(40, "カテゴリ名は40文字以内で入力してください。"),
+    .min(1, "分類名は必須です。")
+    .max(40, "分類名は40文字以内で入力してください。"),
 });
 
 export const createTagSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "タグ名は必須です。")
-    .max(30, "タグ名は30文字以内で入力してください。"),
+    .min(1, "共通タグ名は必須です。")
+    .max(30, "共通タグ名は30文字以内で入力してください。"),
 });
 
 export type CategoryKind = z.infer<typeof categoryKindSchema>;

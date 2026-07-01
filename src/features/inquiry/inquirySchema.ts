@@ -16,6 +16,12 @@ const optionalNullableIdSchema = z.preprocess((value) => {
   return value;
 }, z.string().trim().min(1).nullable().optional());
 
+const tagIdsSchema = z
+  .array(z.string().trim().min(1, "タグIDが不正です。"))
+  .max(20, "共通タグは20件以内で選択してください。")
+  .optional()
+  .default([]);
+
 export const createInquirySchema = z.object({
   title: z
     .string()
@@ -25,8 +31,8 @@ export const createInquirySchema = z.object({
   content: z
     .string()
     .trim()
-    .min(1, "概要は必須です。")
-    .max(8000, "概要は8000文字以内で入力してください。"),
+    .min(1, "問い合わせ概要は必須です。")
+    .max(8000, "問い合わせ概要は8000文字以内で入力してください。"),
   responseNote: z
     .string()
     .trim()
@@ -47,6 +53,7 @@ export const createInquirySchema = z.object({
   inquiryCategoryId: optionalNullableIdSchema,
   source: z.enum(inquirySourceValues).default("experience"),
   isFavorite: z.boolean().optional().default(false),
+  tagIds: tagIdsSchema,
 });
 
 export type InquirySource = z.infer<typeof createInquirySchema>["source"];

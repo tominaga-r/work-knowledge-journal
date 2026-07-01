@@ -361,14 +361,14 @@ export function KnowledgeEditPage() {
 
       {categoryLoadError && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">カテゴリの読み込みに失敗しました。</p>
+          <p className="font-semibold">分類の読み込みに失敗しました。</p>
           <p className="mt-1 break-all">{categoryLoadError}</p>
         </div>
       )}
 
       {tagLoadError && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">タグの読み込みに失敗しました。</p>
+          <p className="font-semibold">共通タグの読み込みに失敗しました。</p>
           <p className="mt-1 break-all">{tagLoadError}</p>
         </div>
       )}
@@ -498,7 +498,7 @@ export function KnowledgeEditPage() {
                 htmlFor="knowledge-edit-category"
                 className="text-sm font-semibold text-slate-900"
               >
-                カテゴリ
+                分類
               </label>
               <select
                 id="knowledge-edit-category"
@@ -560,15 +560,15 @@ export function KnowledgeEditPage() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-900">タグ</p>
+            <p className="text-sm font-semibold text-slate-900">共通タグ</p>
             <p className="mt-1 text-xs text-slate-500">
-              既存タグから選択します。タグの追加・編集・削除はStep
+              既存共通タグから選択します。共通タグの追加・編集・削除はStep
               5で実装します。
             </p>
 
             {tags.length === 0 ? (
               <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-                登録済みタグがありません。
+                登録済み共通タグがありません。
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">

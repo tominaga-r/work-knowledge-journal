@@ -27,8 +27,8 @@ const optionalNullableIdSchema = z.preprocess((value) => {
 }, z.string().trim().min(1).nullable().optional());
 
 const tagIdsSchema = z
-  .array(z.string().trim().min(1, "タグIDが不正です。"))
-  .max(20, "タグは20件以内で選択してください。")
+  .array(z.string().trim().min(1, "共通タグIDが不正です。"))
+  .max(20, "共通タグは20件以内で選択してください。")
   .optional()
   .default([]);
 

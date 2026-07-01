@@ -66,7 +66,7 @@ async function ensureCategory(
   const category = rows[0];
 
   if (!category) {
-    throw new Error(`サンプルカテゴリの取得に失敗しました: ${name}`);
+    throw new Error(`サンプル分類の取得に失敗しました: ${name}`);
   }
 
   return category;
