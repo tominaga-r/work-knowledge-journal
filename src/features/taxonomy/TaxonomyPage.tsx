@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   CategoryRecord,
   createCategory,
+  deleteCategory,
   listCategories,
+  updateCategory,
 } from "./categoryRepository";
-import { TagRecord, createTag, listTags } from "./tagRepository";
+import {
+  TagRecord,
+  createTag,
+  deleteTag,
+  listTags,
+  updateTag,
+} from "./tagRepository";
 import {
   CategoryKind,
   createCategorySchema,
@@ -26,6 +34,26 @@ type FieldErrors = {
   knowledgeCategoryName?: string;
   inquiryCategoryName?: string;
   tagName?: string;
+  editName?: string;
+};
+
+type EditableItemKind = CategoryKind | "tag";
+
+type EditingItem = {
+  kind: EditableItemKind;
+  id: string;
+  name: string;
+};
+
+type DeletingItem = {
+  kind: EditableItemKind;
+  id: string;
+  name: string;
+};
+
+type DisplayItem = {
+  id: string;
+  name: string;
 };
 
 const initialCategoryForm: CategoryFormState = {
@@ -39,6 +67,18 @@ const initialTagForm: TagFormState = {
 
 function getCategoryFieldName(kind: CategoryKind) {
   return kind === "knowledge" ? "knowledgeCategoryName" : "inquiryCategoryName";
+}
+
+function getItemKindLabel(kind: EditableItemKind): string {
+  if (kind === "knowledge") {
+    return "ナレッジ用カテゴリ";
+  }
+
+  if (kind === "inquiry") {
+    return "問い合わせ用カテゴリ";
+  }
+
+  return "タグ";
 }
 
 export function TaxonomyPage() {
@@ -57,6 +97,9 @@ export function TaxonomyPage() {
     "loading" | "ready" | "saving" | "error"
   >("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [deletingItem, setDeletingItem] = useState<DeletingItem | null>(null);
 
   async function loadTaxonomy() {
     const [loadedKnowledgeCategories, loadedInquiryCategories, loadedTags] =
@@ -148,6 +191,42 @@ export function TaxonomyPage() {
     }
   }
 
+  function startEdit(item: EditingItem) {
+    setEditingItem(item);
+    setEditName(item.name);
+    setFieldErrors((current) => ({
+      ...current,
+      editName: undefined,
+    }));
+    setErrorMessage("");
+
+    if (status === "error") {
+      setStatus("ready");
+    }
+  }
+
+  function cancelEdit() {
+    setEditingItem(null);
+    setEditName("");
+    setFieldErrors((current) => ({
+      ...current,
+      editName: undefined,
+    }));
+  }
+
+  function startDelete(item: DeletingItem) {
+    setDeletingItem(item);
+    setErrorMessage("");
+
+    if (status === "error") {
+      setStatus("ready");
+    }
+  }
+
+  function cancelDelete() {
+    setDeletingItem(null);
+  }
+
   async function handleCreateCategory(kind: CategoryKind) {
     if (status === "saving") {
       return;
@@ -228,6 +307,93 @@ export function TaxonomyPage() {
     }
   }
 
+  async function handleUpdateItem() {
+    if (!editingItem || status === "saving") {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage("");
+
+    try {
+      if (editingItem.kind === "tag") {
+        const validationResult = createTagSchema.safeParse({
+          name: editName,
+        });
+
+        if (!validationResult.success) {
+          setFieldErrors((current) => ({
+            ...current,
+            editName:
+              validationResult.error.issues[0]?.message ??
+              "名称を確認してください。",
+          }));
+          setStatus("ready");
+          return;
+        }
+
+        await updateTag(editingItem.id, validationResult.data.name);
+      } else {
+        const validationResult = createCategorySchema.safeParse({
+          kind: editingItem.kind,
+          name: editName,
+        });
+
+        if (!validationResult.success) {
+          setFieldErrors((current) => ({
+            ...current,
+            editName:
+              validationResult.error.issues[0]?.message ??
+              "名称を確認してください。",
+          }));
+          setStatus("ready");
+          return;
+        }
+
+        await updateCategory(
+          validationResult.data.kind,
+          editingItem.id,
+          validationResult.data.name,
+        );
+      }
+
+      await loadTaxonomy();
+      setEditingItem(null);
+      setEditName("");
+      setStatus("ready");
+    } catch (error: unknown) {
+      console.error(error);
+      setErrorMessage(getErrorMessage(error));
+      setStatus("error");
+    }
+  }
+
+  async function handleDeleteItem() {
+    if (!deletingItem || status === "saving") {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage("");
+
+    try {
+      if (deletingItem.kind === "tag") {
+        await deleteTag(deletingItem.id);
+      } else {
+        await deleteCategory(deletingItem.kind, deletingItem.id);
+      }
+
+      await loadTaxonomy();
+      setDeletingItem(null);
+      setStatus("ready");
+    } catch (error: unknown) {
+      console.error(error);
+      setDeletingItem(null);
+      setErrorMessage(getErrorMessage(error));
+      setStatus("error");
+    }
+  }
+
   if (status === "loading") {
     return (
       <div>
@@ -247,7 +413,7 @@ export function TaxonomyPage() {
         <div className="flex gap-3">
           <AlertTriangle className="mt-0.5 shrink-0" size={18} />
           <div>
-            <p className="font-semibold">登録時の注意</p>
+            <p className="font-semibold">登録・編集時の注意</p>
             <p className="mt-1">
               カテゴリ名・タグ名には、顧客名、社外秘資料名、非公開の商品名などを含めないでください。
               検索・分類しやすい一般化された名称にします。
@@ -283,6 +449,20 @@ export function TaxonomyPage() {
             id: category.id,
             name: category.name,
           }))}
+          onEdit={(item) =>
+            startEdit({
+              kind: "knowledge",
+              id: item.id,
+              name: item.name,
+            })
+          }
+          onDelete={(item) =>
+            startDelete({
+              kind: "knowledge",
+              id: item.id,
+              name: item.name,
+            })
+          }
         />
 
         <TaxonomyCard
@@ -302,6 +482,20 @@ export function TaxonomyPage() {
             id: category.id,
             name: category.name,
           }))}
+          onEdit={(item) =>
+            startEdit({
+              kind: "inquiry",
+              id: item.id,
+              name: item.name,
+            })
+          }
+          onDelete={(item) =>
+            startDelete({
+              kind: "inquiry",
+              id: item.id,
+              name: item.name,
+            })
+          }
         />
 
         <TaxonomyCard
@@ -322,8 +516,156 @@ export function TaxonomyPage() {
             name: tag.name,
           }))}
           itemPrefix="#"
+          onEdit={(item) =>
+            startEdit({
+              kind: "tag",
+              id: item.id,
+              name: item.name,
+            })
+          }
+          onDelete={(item) =>
+            startDelete({
+              kind: "tag",
+              id: item.id,
+              name: item.name,
+            })
+          }
         />
       </div>
+
+      {editingItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-taxonomy-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="edit-taxonomy-title"
+                  className="text-lg font-bold text-slate-900"
+                >
+                  {getItemKindLabel(editingItem.kind)}を編集
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  分類名を変更します。既存データとの紐付けは維持されます。
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={status === "saving"}
+                className="rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="編集ダイアログを閉じる"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <label
+                htmlFor="edit-taxonomy-name"
+                className="text-sm font-semibold text-slate-900"
+              >
+                名称
+              </label>
+              <input
+                id="edit-taxonomy-name"
+                value={editName}
+                onChange={(event) => {
+                  setEditName(event.target.value);
+                  setFieldErrors((current) => ({
+                    ...current,
+                    editName: undefined,
+                  }));
+                }}
+                maxLength={40}
+                aria-invalid={fieldErrors.editName ? "true" : "false"}
+                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              />
+              {fieldErrors.editName && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {fieldErrors.editName}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={status === "saving"}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleUpdateItem();
+                }}
+                disabled={status === "saving"}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {status === "saving" ? "更新中..." : "更新する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-taxonomy-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <h2
+              id="delete-taxonomy-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              {getItemKindLabel(deletingItem.kind)}を削除
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              以下の分類を削除します。使用中の場合は削除できません。
+            </p>
+
+            <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
+              <p className="font-semibold">削除対象</p>
+              <p className="mt-1 wrap-break-word">
+                {deletingItem.kind === "tag" ? "#" : ""}
+                {deletingItem.name}
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelDelete}
+                disabled={status === "saving"}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleDeleteItem();
+                }}
+                disabled={status === "saving"}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {status === "saving" ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -352,6 +694,8 @@ function TaxonomyCard({
   emptyMessage,
   items,
   itemPrefix = "",
+  onEdit,
+  onDelete,
 }: {
   title: string;
   description: string;
@@ -363,8 +707,10 @@ function TaxonomyCard({
   onChange: (value: string) => void;
   onSubmit: () => void;
   emptyMessage: string;
-  items: Array<{ id: string; name: string }>;
+  items: DisplayItem[];
   itemPrefix?: string;
+  onEdit: (item: DisplayItem) => void;
+  onDelete: (item: DisplayItem) => void;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -422,15 +768,39 @@ function TaxonomyCard({
             {emptyMessage}
           </div>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid gap-2">
             {items.map((item) => (
-              <span
+              <div
                 key={item.id}
-                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
               >
-                {itemPrefix}
-                {item.name}
-              </span>
+                <span className="min-w-0 wrap-break-word text-sm font-semibold text-slate-700">
+                  {itemPrefix}
+                  {item.name}
+                </span>
+
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(item)}
+                    disabled={isSaving}
+                    className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={`${item.name}を編集`}
+                  >
+                    <Pencil size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onDelete(item)}
+                    disabled={isSaving}
+                    className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={`${item.name}を削除`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
