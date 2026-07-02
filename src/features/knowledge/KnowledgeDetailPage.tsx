@@ -1,4 +1,9 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Star } from "lucide-react";
 import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
@@ -21,9 +26,31 @@ function splitTagNames(tagNames: string | null): string[] {
     .filter(Boolean);
 }
 
+function createBackLink(fromInquiryId: string | null): {
+  to: string;
+  label: string;
+} {
+  if (fromInquiryId) {
+    return {
+      to: `/inquiries/${encodeURIComponent(fromInquiryId)}`,
+      label: "問い合わせメモへ戻る",
+    };
+  }
+
+  return {
+    to: "/knowledge",
+    label: "ナレッジ一覧へ戻る",
+  };
+}
+
 export function KnowledgeDetailPage() {
   const { knowledgeId } = useParams<{ knowledgeId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const fromInquiryId = searchParams.get("fromInquiryId");
+  const backLink = createBackLink(fromInquiryId);
+
   const [item, setItem] = useState<KnowledgeListItem | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<
@@ -109,11 +136,11 @@ export function KnowledgeDetailPage() {
       <div>
         <div className="mb-6">
           <Link
-            to="/knowledge"
+            to={backLink.to}
             className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={16} />
-            ナレッジ一覧へ戻る
+            {backLink.label}
           </Link>
         </div>
 
@@ -129,11 +156,11 @@ export function KnowledgeDetailPage() {
       <div>
         <div className="mb-6">
           <Link
-            to="/knowledge"
+            to={backLink.to}
             className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={16} />
-            ナレッジ一覧へ戻る
+            {backLink.label}
           </Link>
         </div>
 
@@ -152,11 +179,11 @@ export function KnowledgeDetailPage() {
       <div>
         <div className="mb-6">
           <Link
-            to="/knowledge"
+            to={backLink.to}
             className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={16} />
-            ナレッジ一覧へ戻る
+            {backLink.label}
           </Link>
         </div>
 
@@ -179,15 +206,17 @@ export function KnowledgeDetailPage() {
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <Link
-            to="/knowledge"
+            to={backLink.to}
             className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft size={16} />
-            ナレッジ一覧へ戻る
+            {backLink.label}
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">{item.title}</h1>
+            <h1 className="wrap-break-word text-2xl font-bold text-slate-900">
+              {item.title}
+            </h1>
 
             {item.is_favorite === 1 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-800">
@@ -223,10 +252,6 @@ export function KnowledgeDetailPage() {
         </div>
       </div>
 
-      <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        この画面には登録済みの本文を表示します。顧客の個人情報、社外秘情報、非公開の商品情報が含まれていないか確認してください。
-      </div>
-
       {deleteStatus === "error" && deleteErrorMessage && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">ナレッジの削除に失敗しました。</p>
@@ -241,7 +266,7 @@ export function KnowledgeDetailPage() {
           </span>
 
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-            分類: {item.category_name ?? "未設定"}
+            ナレッジ分類: {item.category_name ?? "未設定"}
           </span>
 
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">

@@ -1,14 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Link2, Star, Trash2, Unlink } from "lucide-react";
+import { createExcerpt } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
+import {
+  knowledgeSourceLabels,
+  knowledgeTypeLabels,
+} from "../knowledge/knowledgeLabels";
+import {
+  KnowledgeListItem,
+  listKnowledgeItems,
+} from "../knowledge/knowledgeRepository";
 import { inquirySourceLabels } from "./inquiryLabels";
 import {
   InquiryListItem,
   deleteInquiryNote,
   getInquiryNoteById,
 } from "./inquiryRepository";
+import {
+  LinkedKnowledgeItem,
+  linkKnowledgeToInquiry,
+  listLinkedKnowledgeItems,
+  unlinkKnowledgeFromInquiry,
+} from "./inquiryKnowledgeLinkRepository";
 
 function splitNames(value: string | null): string[] {
   if (!value) {
@@ -21,20 +36,67 @@ function splitNames(value: string | null): string[] {
     .filter(Boolean);
 }
 
+function createLinkedKnowledgePath(knowledgeId: string, inquiryId: string) {
+  return `/knowledge/${knowledgeId}?fromInquiryId=${encodeURIComponent(
+    inquiryId,
+  )}`;
+}
+
 export function InquiryDetailPage() {
   const { inquiryId } = useParams<{ inquiryId: string }>();
   const navigate = useNavigate();
 
   const [item, setItem] = useState<InquiryListItem | null>(null);
+  const [linkedKnowledgeItems, setLinkedKnowledgeItems] = useState<
+    LinkedKnowledgeItem[]
+  >([]);
+  const [allKnowledgeItems, setAllKnowledgeItems] = useState<
+    KnowledgeListItem[]
+  >([]);
+  const [selectedKnowledgeId, setSelectedKnowledgeId] = useState("");
   const [status, setStatus] = useState<
     "loading" | "ready" | "notFound" | "error"
   >("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [linkStatus, setLinkStatus] = useState<"idle" | "saving" | "error">(
+    "idle",
+  );
+  const [linkErrorMessage, setLinkErrorMessage] = useState("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<
     "idle" | "deleting" | "error"
   >("idle");
   const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
+
+  const linkableKnowledgeItems = useMemo(() => {
+    const linkedIds = new Set(
+      linkedKnowledgeItems.map((knowledge) => knowledge.id),
+    );
+
+    return allKnowledgeItems.filter(
+      (knowledge) => !linkedIds.has(knowledge.id),
+    );
+  }, [allKnowledgeItems, linkedKnowledgeItems]);
+
+  async function loadLinkedKnowledge(inquiryIdToLoad: string) {
+    const [loadedLinkedKnowledgeItems, loadedAllKnowledgeItems] =
+      await Promise.all([
+        listLinkedKnowledgeItems(inquiryIdToLoad),
+        listKnowledgeItems(),
+      ]);
+
+    setLinkedKnowledgeItems(loadedLinkedKnowledgeItems);
+    setAllKnowledgeItems(loadedAllKnowledgeItems);
+
+    const linkedIds = new Set(
+      loadedLinkedKnowledgeItems.map((knowledge) => knowledge.id),
+    );
+    const firstLinkableKnowledge = loadedAllKnowledgeItems.find(
+      (knowledge) => !linkedIds.has(knowledge.id),
+    );
+
+    setSelectedKnowledgeId(firstLinkableKnowledge?.id ?? "");
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -58,6 +120,28 @@ export function InquiryDetailPage() {
         }
 
         setItem(loadedItem);
+
+        const [loadedLinkedKnowledgeItems, loadedAllKnowledgeItems] =
+          await Promise.all([
+            listLinkedKnowledgeItems(inquiryId),
+            listKnowledgeItems(),
+          ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setLinkedKnowledgeItems(loadedLinkedKnowledgeItems);
+        setAllKnowledgeItems(loadedAllKnowledgeItems);
+
+        const linkedIds = new Set(
+          loadedLinkedKnowledgeItems.map((knowledge) => knowledge.id),
+        );
+        const firstLinkableKnowledge = loadedAllKnowledgeItems.find(
+          (knowledge) => !linkedIds.has(knowledge.id),
+        );
+
+        setSelectedKnowledgeId(firstLinkableKnowledge?.id ?? "");
         setStatus("ready");
       } catch (error: unknown) {
         console.error(error);
@@ -75,6 +159,44 @@ export function InquiryDetailPage() {
       isMounted = false;
     };
   }, [inquiryId]);
+
+  async function handleLinkKnowledge() {
+    if (!item || !selectedKnowledgeId || linkStatus === "saving") {
+      return;
+    }
+
+    setLinkStatus("saving");
+    setLinkErrorMessage("");
+
+    try {
+      await linkKnowledgeToInquiry(item.id, selectedKnowledgeId);
+      await loadLinkedKnowledge(item.id);
+      setLinkStatus("idle");
+    } catch (error: unknown) {
+      console.error(error);
+      setLinkStatus("error");
+      setLinkErrorMessage(getErrorMessage(error));
+    }
+  }
+
+  async function handleUnlinkKnowledge(knowledgeId: string) {
+    if (!item || linkStatus === "saving") {
+      return;
+    }
+
+    setLinkStatus("saving");
+    setLinkErrorMessage("");
+
+    try {
+      await unlinkKnowledgeFromInquiry(item.id, knowledgeId);
+      await loadLinkedKnowledge(item.id);
+      setLinkStatus("idle");
+    } catch (error: unknown) {
+      console.error(error);
+      setLinkStatus("error");
+      setLinkErrorMessage(getErrorMessage(error));
+    }
+  }
 
   async function handleDelete() {
     if (!item || deleteStatus === "deleting") {
@@ -169,7 +291,7 @@ export function InquiryDetailPage() {
           </div>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            問い合わせ内容、対応内容、次に活かすことを確認します。
+            問い合わせ内容、対応内容、次に活かすこと、関連ナレッジを確認します。
           </p>
         </div>
 
@@ -203,6 +325,13 @@ export function InquiryDetailPage() {
         </div>
       )}
 
+      {linkStatus === "error" && linkErrorMessage && (
+        <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">関連ナレッジの更新に失敗しました。</p>
+          <p className="mt-1 break-all">{linkErrorMessage}</p>
+        </div>
+      )}
+
       <div className="grid gap-5">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">問い合わせ概要</h2>
@@ -231,6 +360,88 @@ export function InquiryDetailPage() {
           ) : (
             <p className="mt-3 text-sm text-slate-500">未記入です。</p>
           )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">関連ナレッジ</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            この問い合わせメモと関係するナレッジを手動で紐付けます。
+          </p>
+
+          <div className="mt-4">
+            <p className="text-sm font-semibold text-slate-900">
+              紐付け済みナレッジ: {linkedKnowledgeItems.length}件
+            </p>
+
+            {linkedKnowledgeItems.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                関連ナレッジはまだ紐付いていません。
+              </div>
+            ) : (
+              <div className="mt-3 grid gap-3">
+                {linkedKnowledgeItems.map((knowledge) => (
+                  <LinkedKnowledgeCard
+                    key={knowledge.id}
+                    inquiryId={item.id}
+                    knowledge={knowledge}
+                    isSaving={linkStatus === "saving"}
+                    onUnlink={() => {
+                      void handleUnlinkKnowledge(knowledge.id);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <label
+              htmlFor="link-knowledge"
+              className="text-sm font-semibold text-slate-900"
+            >
+              ナレッジを追加
+            </label>
+
+            {allKnowledgeItems.length === 0 ? (
+              <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                登録済みナレッジがありません。
+              </div>
+            ) : linkableKnowledgeItems.length === 0 ? (
+              <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                追加できるナレッジがありません。
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-col gap-2 md:flex-row">
+                <select
+                  id="link-knowledge"
+                  value={selectedKnowledgeId}
+                  onChange={(event) =>
+                    setSelectedKnowledgeId(event.target.value)
+                  }
+                  disabled={linkStatus === "saving"}
+                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {linkableKnowledgeItems.map((knowledge) => (
+                    <option key={knowledge.id} value={knowledge.id}>
+                      {knowledge.title}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleLinkKnowledge();
+                  }}
+                  disabled={linkStatus === "saving" || !selectedKnowledgeId}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Link2 size={16} />
+                  {linkStatus === "saving" ? "追加中..." : "追加"}
+                </button>
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -341,11 +552,94 @@ function BackLink() {
   );
 }
 
+function LinkedKnowledgeCard({
+  inquiryId,
+  knowledge,
+  isSaving,
+  onUnlink,
+}: {
+  inquiryId: string;
+  knowledge: LinkedKnowledgeItem;
+  isSaving: boolean;
+  onUnlink: () => void;
+}) {
+  const tagNames = splitNames(knowledge.tag_names);
+
+  return (
+    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <Link
+            to={createLinkedKnowledgePath(knowledge.id, inquiryId)}
+            className="wrap-break-word text-sm font-bold text-slate-900 transition hover:text-slate-600"
+          >
+            {knowledge.title}
+          </Link>
+
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+            {createExcerpt(knowledge.content, 120)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onUnlink}
+          disabled={isSaving}
+          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Unlink size={14} />
+          解除
+        </button>
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
+        <MiniInfo label="種別" value={knowledgeTypeLabels[knowledge.type]} />
+        <MiniInfo
+          label="ナレッジ分類"
+          value={knowledge.category_name ?? "未設定"}
+        />
+        <MiniInfo
+          label="source"
+          value={knowledgeSourceLabels[knowledge.source]}
+        />
+      </div>
+
+      <div className="mt-3">
+        {tagNames.length === 0 ? (
+          <p className="text-xs text-slate-500">共通タグ未設定</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {tagNames.map((tagName) => (
+              <span
+                key={tagName}
+                className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+              >
+                #{tagName}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-slate-50 px-3 py-2">
       <p className="text-xs font-semibold text-slate-500">{label}</p>
       <p className="mt-1 wrap-break-word text-sm font-semibold text-slate-800">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function MiniInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white px-2.5 py-2">
+      <p className="text-[11px] font-semibold text-slate-500">{label}</p>
+      <p className="mt-1 wrap-break-word font-semibold text-slate-700">
         {value}
       </p>
     </div>
