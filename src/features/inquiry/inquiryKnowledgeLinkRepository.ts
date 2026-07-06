@@ -5,6 +5,11 @@ import type { KnowledgeListItem } from "../knowledge/knowledgeRepository";
 
 export type LinkedKnowledgeItem = KnowledgeListItem;
 
+export type SuggestedKnowledgeItem = KnowledgeListItem & {
+  matched_tag_names: string | null;
+  matched_tag_count: number;
+};
+
 type TableColumn = {
   name: string;
 };
@@ -66,6 +71,69 @@ export async function listLinkedKnowledgeItems(
       knowledge_items.updated_at,
       knowledge_categories.name
     ORDER BY knowledge_items.updated_at DESC`,
+    [normalizedInquiryId],
+  );
+}
+
+export async function listTagMatchedKnowledgeCandidates(
+  inquiryId: string,
+): Promise<SuggestedKnowledgeItem[]> {
+  const normalizedInquiryId = inquiryId.trim();
+
+  if (!normalizedInquiryId) {
+    return [];
+  }
+
+  const db = await getDatabase();
+
+  return db.select<SuggestedKnowledgeItem[]>(
+    `SELECT
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name as category_name,
+      GROUP_CONCAT(DISTINCT all_tags.name) as tag_names,
+      GROUP_CONCAT(DISTINCT all_tags.id) as tag_ids,
+      GROUP_CONCAT(DISTINCT matched_tags.name) as matched_tag_names,
+      COUNT(DISTINCT matched_tags.id) as matched_tag_count
+    FROM inquiry_tags
+    INNER JOIN knowledge_tags as matched_knowledge_tags
+      ON inquiry_tags.tag_id = matched_knowledge_tags.tag_id
+    INNER JOIN knowledge_items
+      ON matched_knowledge_tags.knowledge_id = knowledge_items.id
+    LEFT JOIN knowledge_categories
+      ON knowledge_items.knowledge_category_id = knowledge_categories.id
+    LEFT JOIN knowledge_tags as all_knowledge_tags
+      ON knowledge_items.id = all_knowledge_tags.knowledge_id
+    LEFT JOIN tags as all_tags
+      ON all_knowledge_tags.tag_id = all_tags.id
+    LEFT JOIN tags as matched_tags
+      ON inquiry_tags.tag_id = matched_tags.id
+    WHERE inquiry_tags.inquiry_id = $1
+      AND NOT EXISTS (
+        SELECT 1
+        FROM inquiry_knowledge_links
+        WHERE inquiry_knowledge_links.inquiry_id = inquiry_tags.inquiry_id
+          AND inquiry_knowledge_links.knowledge_id = knowledge_items.id
+      )
+    GROUP BY
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name
+    ORDER BY matched_tag_count DESC, knowledge_items.updated_at DESC`,
     [normalizedInquiryId],
   );
 }

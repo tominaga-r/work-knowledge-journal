@@ -20,8 +20,10 @@ import {
 } from "./inquiryRepository";
 import {
   LinkedKnowledgeItem,
+  SuggestedKnowledgeItem,
   linkKnowledgeToInquiry,
   listLinkedKnowledgeItems,
+  listTagMatchedKnowledgeCandidates,
   unlinkKnowledgeFromInquiry,
 } from "./inquiryKnowledgeLinkRepository";
 
@@ -49,6 +51,9 @@ export function InquiryDetailPage() {
   const [item, setItem] = useState<InquiryListItem | null>(null);
   const [linkedKnowledgeItems, setLinkedKnowledgeItems] = useState<
     LinkedKnowledgeItem[]
+  >([]);
+  const [suggestedKnowledgeItems, setSuggestedKnowledgeItems] = useState<
+    SuggestedKnowledgeItem[]
   >([]);
   const [allKnowledgeItems, setAllKnowledgeItems] = useState<
     KnowledgeListItem[]
@@ -78,14 +83,19 @@ export function InquiryDetailPage() {
     );
   }, [allKnowledgeItems, linkedKnowledgeItems]);
 
-  async function loadLinkedKnowledge(inquiryIdToLoad: string) {
-    const [loadedLinkedKnowledgeItems, loadedAllKnowledgeItems] =
-      await Promise.all([
-        listLinkedKnowledgeItems(inquiryIdToLoad),
-        listKnowledgeItems(),
-      ]);
+  async function loadKnowledgeRelations(inquiryIdToLoad: string) {
+    const [
+      loadedLinkedKnowledgeItems,
+      loadedSuggestedKnowledgeItems,
+      loadedAllKnowledgeItems,
+    ] = await Promise.all([
+      listLinkedKnowledgeItems(inquiryIdToLoad),
+      listTagMatchedKnowledgeCandidates(inquiryIdToLoad),
+      listKnowledgeItems(),
+    ]);
 
     setLinkedKnowledgeItems(loadedLinkedKnowledgeItems);
+    setSuggestedKnowledgeItems(loadedSuggestedKnowledgeItems);
     setAllKnowledgeItems(loadedAllKnowledgeItems);
 
     const linkedIds = new Set(
@@ -121,17 +131,22 @@ export function InquiryDetailPage() {
 
         setItem(loadedItem);
 
-        const [loadedLinkedKnowledgeItems, loadedAllKnowledgeItems] =
-          await Promise.all([
-            listLinkedKnowledgeItems(inquiryId),
-            listKnowledgeItems(),
-          ]);
+        const [
+          loadedLinkedKnowledgeItems,
+          loadedSuggestedKnowledgeItems,
+          loadedAllKnowledgeItems,
+        ] = await Promise.all([
+          listLinkedKnowledgeItems(inquiryId),
+          listTagMatchedKnowledgeCandidates(inquiryId),
+          listKnowledgeItems(),
+        ]);
 
         if (!isMounted) {
           return;
         }
 
         setLinkedKnowledgeItems(loadedLinkedKnowledgeItems);
+        setSuggestedKnowledgeItems(loadedSuggestedKnowledgeItems);
         setAllKnowledgeItems(loadedAllKnowledgeItems);
 
         const linkedIds = new Set(
@@ -165,12 +180,20 @@ export function InquiryDetailPage() {
       return;
     }
 
+    await handleLinkSpecificKnowledge(selectedKnowledgeId);
+  }
+
+  async function handleLinkSpecificKnowledge(knowledgeId: string) {
+    if (!item || !knowledgeId || linkStatus === "saving") {
+      return;
+    }
+
     setLinkStatus("saving");
     setLinkErrorMessage("");
 
     try {
-      await linkKnowledgeToInquiry(item.id, selectedKnowledgeId);
-      await loadLinkedKnowledge(item.id);
+      await linkKnowledgeToInquiry(item.id, knowledgeId);
+      await loadKnowledgeRelations(item.id);
       setLinkStatus("idle");
     } catch (error: unknown) {
       console.error(error);
@@ -189,7 +212,7 @@ export function InquiryDetailPage() {
 
     try {
       await unlinkKnowledgeFromInquiry(item.id, knowledgeId);
-      await loadLinkedKnowledge(item.id);
+      await loadKnowledgeRelations(item.id);
       setLinkStatus("idle");
     } catch (error: unknown) {
       console.error(error);
@@ -395,11 +418,44 @@ export function InquiryDetailPage() {
           </div>
 
           <div className="mt-5 border-t border-slate-100 pt-5">
+            <p className="text-sm font-semibold text-slate-900">
+              共通タグが一致する候補
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              この問い合わせメモと同じ共通タグを持つナレッジを候補として表示します。すでに紐付け済みのナレッジは表示されません。
+            </p>
+
+            {tagNames.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                この問い合わせメモに共通タグが設定されていないため、タグ一致候補は表示できません。
+              </div>
+            ) : suggestedKnowledgeItems.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                同じ共通タグを持つ未紐付けのナレッジはありません。
+              </div>
+            ) : (
+              <div className="mt-3 grid gap-3">
+                {suggestedKnowledgeItems.map((knowledge) => (
+                  <SuggestedKnowledgeCard
+                    key={knowledge.id}
+                    inquiryId={item.id}
+                    knowledge={knowledge}
+                    isSaving={linkStatus === "saving"}
+                    onLink={() => {
+                      void handleLinkSpecificKnowledge(knowledge.id);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-5">
             <label
               htmlFor="link-knowledge"
               className="text-sm font-semibold text-slate-900"
             >
-              ナレッジを追加
+              ナレッジを手動で追加
             </label>
 
             {allKnowledgeItems.length === 0 ? (
@@ -612,6 +668,102 @@ function LinkedKnowledgeCard({
             {tagNames.map((tagName) => (
               <span
                 key={tagName}
+                className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+              >
+                #{tagName}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function SuggestedKnowledgeCard({
+  inquiryId,
+  knowledge,
+  isSaving,
+  onLink,
+}: {
+  inquiryId: string;
+  knowledge: SuggestedKnowledgeItem;
+  isSaving: boolean;
+  onLink: () => void;
+}) {
+  const tagNames = splitNames(knowledge.tag_names);
+  const matchedTagNames = splitNames(knowledge.matched_tag_names);
+
+  return (
+    <article className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <Link
+            to={createLinkedKnowledgePath(knowledge.id, inquiryId)}
+            className="wrap-break-word text-sm font-bold text-slate-900 transition hover:text-slate-600"
+          >
+            {knowledge.title}
+          </Link>
+
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+            {createExcerpt(knowledge.content, 120)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onLink}
+          disabled={isSaving}
+          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Link2 size={14} />
+          追加
+        </button>
+      </div>
+
+      <div className="mt-3 rounded-lg bg-white px-3 py-2">
+        <p className="text-[11px] font-semibold text-blue-700">
+          一致した共通タグ
+        </p>
+
+        {matchedTagNames.length === 0 ? (
+          <p className="mt-1 text-xs text-slate-500">
+            一致タグを取得できませんでした。
+          </p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {matchedTagNames.map((tagName) => (
+              <span
+                key={`${knowledge.id}-matched-${tagName}`}
+                className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700"
+              >
+                #{tagName}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
+        <MiniInfo label="種別" value={knowledgeTypeLabels[knowledge.type]} />
+        <MiniInfo
+          label="ナレッジ分類"
+          value={knowledge.category_name ?? "未設定"}
+        />
+        <MiniInfo
+          label="source"
+          value={knowledgeSourceLabels[knowledge.source]}
+        />
+      </div>
+
+      <div className="mt-3">
+        {tagNames.length === 0 ? (
+          <p className="text-xs text-slate-500">共通タグ未設定</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {tagNames.map((tagName) => (
+              <span
+                key={`${knowledge.id}-${tagName}`}
                 className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
               >
                 #{tagName}
