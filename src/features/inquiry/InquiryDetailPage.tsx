@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Link2, Star, Trash2, Unlink } from "lucide-react";
+import { ArrowLeft, Link2, Search, Star, Trash2, Unlink } from "lucide-react";
 import { createExcerpt } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
@@ -19,9 +19,11 @@ import {
   getInquiryNoteById,
 } from "./inquiryRepository";
 import {
+  KeywordSuggestedKnowledgeItem,
   LinkedKnowledgeItem,
   SuggestedKnowledgeItem,
   linkKnowledgeToInquiry,
+  listKeywordMatchedKnowledgeCandidates,
   listLinkedKnowledgeItems,
   listTagMatchedKnowledgeCandidates,
   unlinkKnowledgeFromInquiry,
@@ -55,6 +57,8 @@ export function InquiryDetailPage() {
   const [suggestedKnowledgeItems, setSuggestedKnowledgeItems] = useState<
     SuggestedKnowledgeItem[]
   >([]);
+  const [keywordSuggestedKnowledgeItems, setKeywordSuggestedKnowledgeItems] =
+    useState<KeywordSuggestedKnowledgeItem[]>([]);
   const [allKnowledgeItems, setAllKnowledgeItems] = useState<
     KnowledgeListItem[]
   >([]);
@@ -87,15 +91,18 @@ export function InquiryDetailPage() {
     const [
       loadedLinkedKnowledgeItems,
       loadedSuggestedKnowledgeItems,
+      loadedKeywordSuggestedKnowledgeItems,
       loadedAllKnowledgeItems,
     ] = await Promise.all([
       listLinkedKnowledgeItems(inquiryIdToLoad),
       listTagMatchedKnowledgeCandidates(inquiryIdToLoad),
+      listKeywordMatchedKnowledgeCandidates(inquiryIdToLoad),
       listKnowledgeItems(),
     ]);
 
     setLinkedKnowledgeItems(loadedLinkedKnowledgeItems);
     setSuggestedKnowledgeItems(loadedSuggestedKnowledgeItems);
+    setKeywordSuggestedKnowledgeItems(loadedKeywordSuggestedKnowledgeItems);
     setAllKnowledgeItems(loadedAllKnowledgeItems);
 
     const linkedIds = new Set(
@@ -134,10 +141,12 @@ export function InquiryDetailPage() {
         const [
           loadedLinkedKnowledgeItems,
           loadedSuggestedKnowledgeItems,
+          loadedKeywordSuggestedKnowledgeItems,
           loadedAllKnowledgeItems,
         ] = await Promise.all([
           listLinkedKnowledgeItems(inquiryId),
           listTagMatchedKnowledgeCandidates(inquiryId),
+          listKeywordMatchedKnowledgeCandidates(inquiryId),
           listKnowledgeItems(),
         ]);
 
@@ -147,6 +156,7 @@ export function InquiryDetailPage() {
 
         setLinkedKnowledgeItems(loadedLinkedKnowledgeItems);
         setSuggestedKnowledgeItems(loadedSuggestedKnowledgeItems);
+        setKeywordSuggestedKnowledgeItems(loadedKeywordSuggestedKnowledgeItems);
         setAllKnowledgeItems(loadedAllKnowledgeItems);
 
         const linkedIds = new Set(
@@ -451,6 +461,36 @@ export function InquiryDetailPage() {
           </div>
 
           <div className="mt-5 border-t border-slate-100 pt-5">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Search size={15} />
+              キーワードが一致する候補
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              問い合わせメモのタイトル・概要・対応メモ・次に活かすことからキーワードを抽出し、ナレッジのタイトル・本文と一致するものを表示します。タグ一致候補と紐付け済みナレッジは除外しています。
+            </p>
+
+            {keywordSuggestedKnowledgeItems.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                キーワードが一致する未紐付けのナレッジはありません。
+              </div>
+            ) : (
+              <div className="mt-3 grid gap-3">
+                {keywordSuggestedKnowledgeItems.map((knowledge) => (
+                  <KeywordSuggestedKnowledgeCard
+                    key={knowledge.id}
+                    inquiryId={item.id}
+                    knowledge={knowledge}
+                    isSaving={linkStatus === "saving"}
+                    onLink={() => {
+                      void handleLinkSpecificKnowledge(knowledge.id);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-5">
             <label
               htmlFor="link-knowledge"
               className="text-sm font-semibold text-slate-900"
@@ -738,6 +778,102 @@ function SuggestedKnowledgeCard({
                 className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700"
               >
                 #{tagName}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
+        <MiniInfo label="種別" value={knowledgeTypeLabels[knowledge.type]} />
+        <MiniInfo
+          label="ナレッジ分類"
+          value={knowledge.category_name ?? "未設定"}
+        />
+        <MiniInfo
+          label="source"
+          value={knowledgeSourceLabels[knowledge.source]}
+        />
+      </div>
+
+      <div className="mt-3">
+        {tagNames.length === 0 ? (
+          <p className="text-xs text-slate-500">共通タグ未設定</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {tagNames.map((tagName) => (
+              <span
+                key={`${knowledge.id}-${tagName}`}
+                className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+              >
+                #{tagName}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function KeywordSuggestedKnowledgeCard({
+  inquiryId,
+  knowledge,
+  isSaving,
+  onLink,
+}: {
+  inquiryId: string;
+  knowledge: KeywordSuggestedKnowledgeItem;
+  isSaving: boolean;
+  onLink: () => void;
+}) {
+  const tagNames = splitNames(knowledge.tag_names);
+  const matchedKeywords = splitNames(knowledge.matched_keywords);
+
+  return (
+    <article className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <Link
+            to={createLinkedKnowledgePath(knowledge.id, inquiryId)}
+            className="wrap-break-word text-sm font-bold text-slate-900 transition hover:text-slate-600"
+          >
+            {knowledge.title}
+          </Link>
+
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+            {createExcerpt(knowledge.content, 120)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onLink}
+          disabled={isSaving}
+          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Link2 size={14} />
+          追加
+        </button>
+      </div>
+
+      <div className="mt-3 rounded-lg bg-white px-3 py-2">
+        <p className="text-[11px] font-semibold text-emerald-700">
+          一致したキーワード
+        </p>
+
+        {matchedKeywords.length === 0 ? (
+          <p className="mt-1 text-xs text-slate-500">
+            一致キーワードを取得できませんでした。
+          </p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {matchedKeywords.map((keyword) => (
+              <span
+                key={`${knowledge.id}-keyword-${keyword}`}
+                className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+              >
+                {keyword}
               </span>
             ))}
           </div>

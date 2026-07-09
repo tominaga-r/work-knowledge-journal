@@ -10,8 +10,20 @@ export type SuggestedKnowledgeItem = KnowledgeListItem & {
   matched_tag_count: number;
 };
 
+export type KeywordSuggestedKnowledgeItem = KnowledgeListItem & {
+  matched_keywords: string | null;
+  matched_keyword_count: number;
+};
+
 type TableColumn = {
   name: string;
+};
+
+type InquiryKeywordSource = {
+  title: string;
+  content: string;
+  response_note: string;
+  next_action: string;
 };
 
 async function listLinkTableColumnNames(): Promise<Set<string>> {
@@ -22,6 +34,158 @@ async function listLinkTableColumnNames(): Promise<Set<string>> {
   );
 
   return new Set(columns.map((column) => column.name));
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .replace(
+      /[、。,.!?！？「」『』（）()【】\[\]{}<>:：;；/\\|"'“”‘’\n\r\t]/g,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function createStopWords(): Set<string> {
+  return new Set([
+    "これ",
+    "それ",
+    "ため",
+    "こと",
+    "もの",
+    "よう",
+    "あり",
+    "なし",
+    "対応",
+    "確認",
+    "問い合わせ",
+    "メモ",
+    "内容",
+    "概要",
+    "次に",
+    "活かす",
+    "について",
+    "として",
+    "できる",
+    "できない",
+    "しました",
+    "します",
+    "ある",
+    "ない",
+    "する",
+    "した",
+    "です",
+    "ます",
+  ]);
+}
+
+function isNoiseKeyword(keyword: string, stopWords: Set<string>): boolean {
+  if (keyword.length < 2) {
+    return true;
+  }
+
+  if (stopWords.has(keyword)) {
+    return true;
+  }
+
+  if (/^[ぁ-ん]{1,2}$/.test(keyword)) {
+    return true;
+  }
+
+  if (/^\d+$/.test(keyword)) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractKeywords(source: InquiryKeywordSource): string[] {
+  const combinedText = normalizeSearchText(
+    [
+      source.title,
+      source.content,
+      source.response_note,
+      source.next_action,
+    ].join(" "),
+  );
+
+  const stopWords = createStopWords();
+
+  const whitespaceKeywords = combinedText
+    .split(/\s+/)
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword.length >= 2)
+    .filter((keyword) => keyword.length <= 30)
+    .filter((keyword) => !isNoiseKeyword(keyword, stopWords));
+
+  const japaneseLikeChunks = combinedText
+    .split(/\s+/)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length >= 4)
+    .filter((chunk) => /[ぁ-んァ-ン一-龥]/.test(chunk));
+
+  const partialKeywords: string[] = [];
+
+  for (const chunk of japaneseLikeChunks) {
+    const maxLength = Math.min(12, chunk.length);
+
+    for (let length = maxLength; length >= 2; length -= 1) {
+      for (let index = 0; index <= chunk.length - length; index += 1) {
+        const keyword = chunk.slice(index, index + length);
+
+        if (isNoiseKeyword(keyword, stopWords)) {
+          continue;
+        }
+
+        partialKeywords.push(keyword);
+      }
+    }
+  }
+
+  return Array.from(new Set([...whitespaceKeywords, ...partialKeywords]))
+    .filter((keyword) => keyword.length >= 2)
+    .sort((a, b) => {
+      if (b.length !== a.length) {
+        return b.length - a.length;
+      }
+
+      return a.localeCompare(b);
+    })
+    .slice(0, 120);
+}
+
+function countKeywordMatches(
+  knowledge: KnowledgeListItem,
+  keywords: string[],
+): string[] {
+  const searchableText = normalizeSearchText(
+    `${knowledge.title} ${knowledge.content}`,
+  ).toLowerCase();
+
+  const matchedKeywords = keywords.filter((keyword) =>
+    searchableText.includes(keyword.toLowerCase()),
+  );
+
+  return Array.from(new Set(matchedKeywords))
+    .sort((a, b) => {
+      if (b.length !== a.length) {
+        return b.length - a.length;
+      }
+
+      return a.localeCompare(b);
+    })
+    .slice(0, 12);
+}
+
+function splitMatchedKeywords(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
 }
 
 export async function listLinkedKnowledgeItems(
@@ -136,6 +300,120 @@ export async function listTagMatchedKnowledgeCandidates(
     ORDER BY matched_tag_count DESC, knowledge_items.updated_at DESC`,
     [normalizedInquiryId],
   );
+}
+
+export async function listKeywordMatchedKnowledgeCandidates(
+  inquiryId: string,
+): Promise<KeywordSuggestedKnowledgeItem[]> {
+  const normalizedInquiryId = inquiryId.trim();
+
+  if (!normalizedInquiryId) {
+    return [];
+  }
+
+  const db = await getDatabase();
+
+  const inquiryRows = await db.select<InquiryKeywordSource[]>(
+    `SELECT
+      title,
+      content,
+      response_note,
+      next_action
+     FROM inquiry_notes
+     WHERE id = $1
+     LIMIT 1`,
+    [normalizedInquiryId],
+  );
+
+  const inquiry = inquiryRows[0];
+
+  if (!inquiry) {
+    return [];
+  }
+
+  const keywords = extractKeywords(inquiry);
+
+  if (keywords.length === 0) {
+    return [];
+  }
+
+  const candidates = await db.select<KnowledgeListItem[]>(
+    `SELECT
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name as category_name,
+      GROUP_CONCAT(DISTINCT tags.name) as tag_names,
+      GROUP_CONCAT(DISTINCT tags.id) as tag_ids
+    FROM knowledge_items
+    LEFT JOIN knowledge_categories
+      ON knowledge_items.knowledge_category_id = knowledge_categories.id
+    LEFT JOIN knowledge_tags
+      ON knowledge_items.id = knowledge_tags.knowledge_id
+    LEFT JOIN tags
+      ON knowledge_tags.tag_id = tags.id
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM inquiry_knowledge_links
+      WHERE inquiry_knowledge_links.inquiry_id = $1
+        AND inquiry_knowledge_links.knowledge_id = knowledge_items.id
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM inquiry_tags
+      INNER JOIN knowledge_tags as matched_knowledge_tags
+        ON inquiry_tags.tag_id = matched_knowledge_tags.tag_id
+      WHERE inquiry_tags.inquiry_id = $1
+        AND matched_knowledge_tags.knowledge_id = knowledge_items.id
+    )
+    GROUP BY
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name
+    ORDER BY knowledge_items.updated_at DESC`,
+    [normalizedInquiryId],
+  );
+
+  return candidates
+    .map((candidate) => {
+      const matchedKeywords = countKeywordMatches(candidate, keywords);
+
+      return {
+        ...candidate,
+        matched_keywords:
+          matchedKeywords.length > 0 ? matchedKeywords.join(",") : null,
+        matched_keyword_count: matchedKeywords.length,
+      };
+    })
+    .filter((candidate) => {
+      const matchedKeywords = splitMatchedKeywords(candidate.matched_keywords);
+
+      return (
+        candidate.matched_keyword_count >= 2 ||
+        matchedKeywords.some((keyword) => keyword.length >= 4)
+      );
+    })
+    .sort((a, b) => {
+      if (b.matched_keyword_count !== a.matched_keyword_count) {
+        return b.matched_keyword_count - a.matched_keyword_count;
+      }
+
+      return b.updated_at.localeCompare(a.updated_at);
+    })
+    .slice(0, 10);
 }
 
 async function countExistingLink(
