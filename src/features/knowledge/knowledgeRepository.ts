@@ -30,6 +30,25 @@ export type KnowledgeListItem = KnowledgeRecord & {
   tag_ids: string | null;
 };
 
+export type SearchKnowledgeFilters = {
+  keyword?: string;
+  type?: KnowledgeType | "";
+  knowledgeCategoryId?: string;
+  tagId?: string;
+  source?: KnowledgeSource | "";
+  isFavorite?: boolean;
+};
+
+function normalizeOptionalId(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue ? trimmedValue : null;
+}
+
 async function replaceKnowledgeTags(
   knowledgeId: string,
   tagIds: string[],
@@ -53,6 +72,42 @@ async function replaceKnowledgeTags(
       [knowledgeId, tagId],
     );
   }
+}
+
+function createKnowledgeListSelectSql(whereClause = ""): string {
+  return `SELECT
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name as category_name,
+      GROUP_CONCAT(tags.name, ',') as tag_names,
+      GROUP_CONCAT(tags.id, ',') as tag_ids
+    FROM knowledge_items
+    LEFT JOIN knowledge_categories
+      ON knowledge_items.knowledge_category_id = knowledge_categories.id
+    LEFT JOIN knowledge_tags
+      ON knowledge_items.id = knowledge_tags.knowledge_id
+    LEFT JOIN tags
+      ON knowledge_tags.tag_id = tags.id
+    ${whereClause}
+    GROUP BY
+      knowledge_items.id,
+      knowledge_items.title,
+      knowledge_items.content,
+      knowledge_items.type,
+      knowledge_items.knowledge_category_id,
+      knowledge_items.source,
+      knowledge_items.is_favorite,
+      knowledge_items.created_at,
+      knowledge_items.updated_at,
+      knowledge_categories.name
+    ORDER BY knowledge_items.updated_at DESC`;
 }
 
 export async function createKnowledgeItem(
@@ -114,39 +169,83 @@ export async function createKnowledgeItem(
 export async function listKnowledgeItems(): Promise<KnowledgeListItem[]> {
   const db = await getDatabase();
 
+  return db.select<KnowledgeListItem[]>(createKnowledgeListSelectSql());
+}
+
+export async function searchKnowledgeItems(
+  filters: SearchKnowledgeFilters,
+): Promise<KnowledgeListItem[]> {
+  const db = await getDatabase();
+
+  const whereConditions: string[] = [];
+  const values: Array<string | number> = [];
+
+  function addValue(value: string | number): string {
+    values.push(value);
+    return `$${values.length}`;
+  }
+
+  const keyword = filters.keyword?.trim();
+
+  if (keyword) {
+    const keywordParam = addValue(`%${keyword}%`);
+
+    whereConditions.push(
+      `(knowledge_items.title LIKE ${keywordParam}
+        OR knowledge_items.content LIKE ${keywordParam}
+        OR knowledge_categories.name LIKE ${keywordParam}
+        OR EXISTS (
+          SELECT 1
+          FROM knowledge_tags as keyword_knowledge_tags
+          INNER JOIN tags as keyword_tags
+            ON keyword_knowledge_tags.tag_id = keyword_tags.id
+          WHERE keyword_knowledge_tags.knowledge_id = knowledge_items.id
+            AND keyword_tags.name LIKE ${keywordParam}
+        ))`,
+    );
+  }
+
+  if (filters.type) {
+    whereConditions.push(`knowledge_items.type = ${addValue(filters.type)}`);
+  }
+
+  const categoryId = normalizeOptionalId(filters.knowledgeCategoryId);
+
+  if (categoryId) {
+    whereConditions.push(
+      `knowledge_items.knowledge_category_id = ${addValue(categoryId)}`,
+    );
+  }
+
+  const tagId = normalizeOptionalId(filters.tagId);
+
+  if (tagId) {
+    whereConditions.push(
+      `EXISTS (
+        SELECT 1
+        FROM knowledge_tags as filter_knowledge_tags
+        WHERE filter_knowledge_tags.knowledge_id = knowledge_items.id
+          AND filter_knowledge_tags.tag_id = ${addValue(tagId)}
+      )`,
+    );
+  }
+
+  if (filters.source) {
+    whereConditions.push(
+      `knowledge_items.source = ${addValue(filters.source)}`,
+    );
+  }
+
+  if (filters.isFavorite) {
+    whereConditions.push("knowledge_items.is_favorite = 1");
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
   return db.select<KnowledgeListItem[]>(
-    `SELECT
-      knowledge_items.id,
-      knowledge_items.title,
-      knowledge_items.content,
-      knowledge_items.type,
-      knowledge_items.knowledge_category_id,
-      knowledge_items.source,
-      knowledge_items.is_favorite,
-      knowledge_items.created_at,
-      knowledge_items.updated_at,
-      knowledge_categories.name as category_name,
-      GROUP_CONCAT(tags.name, ',') as tag_names,
-      GROUP_CONCAT(tags.id, ',') as tag_ids
-    FROM knowledge_items
-    LEFT JOIN knowledge_categories
-      ON knowledge_items.knowledge_category_id = knowledge_categories.id
-    LEFT JOIN knowledge_tags
-      ON knowledge_items.id = knowledge_tags.knowledge_id
-    LEFT JOIN tags
-      ON knowledge_tags.tag_id = tags.id
-    GROUP BY
-      knowledge_items.id,
-      knowledge_items.title,
-      knowledge_items.content,
-      knowledge_items.type,
-      knowledge_items.knowledge_category_id,
-      knowledge_items.source,
-      knowledge_items.is_favorite,
-      knowledge_items.created_at,
-      knowledge_items.updated_at,
-      knowledge_categories.name
-    ORDER BY knowledge_items.updated_at DESC`,
+    createKnowledgeListSelectSql(whereClause),
+    values,
   );
 }
 
@@ -162,39 +261,7 @@ export async function getKnowledgeItemById(
   const db = await getDatabase();
 
   const rows = await db.select<KnowledgeListItem[]>(
-    `SELECT
-      knowledge_items.id,
-      knowledge_items.title,
-      knowledge_items.content,
-      knowledge_items.type,
-      knowledge_items.knowledge_category_id,
-      knowledge_items.source,
-      knowledge_items.is_favorite,
-      knowledge_items.created_at,
-      knowledge_items.updated_at,
-      knowledge_categories.name as category_name,
-      GROUP_CONCAT(tags.name, ',') as tag_names,
-      GROUP_CONCAT(tags.id, ',') as tag_ids
-    FROM knowledge_items
-    LEFT JOIN knowledge_categories
-      ON knowledge_items.knowledge_category_id = knowledge_categories.id
-    LEFT JOIN knowledge_tags
-      ON knowledge_items.id = knowledge_tags.knowledge_id
-    LEFT JOIN tags
-      ON knowledge_tags.tag_id = tags.id
-    WHERE knowledge_items.id = $1
-    GROUP BY
-      knowledge_items.id,
-      knowledge_items.title,
-      knowledge_items.content,
-      knowledge_items.type,
-      knowledge_items.knowledge_category_id,
-      knowledge_items.source,
-      knowledge_items.is_favorite,
-      knowledge_items.created_at,
-      knowledge_items.updated_at,
-      knowledge_categories.name
-    LIMIT 1`,
+    createKnowledgeListSelectSql("WHERE knowledge_items.id = $1"),
     [normalizedId],
   );
 

@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
-import { Star } from "lucide-react";
-import { KnowledgeListItem, listKnowledgeItems } from "./knowledgeRepository";
+import { useEffect, useRef, useState } from "react";
+import { Search, Star, X } from "lucide-react";
+import {
+  KnowledgeListItem,
+  SearchKnowledgeFilters,
+  searchKnowledgeItems,
+} from "./knowledgeRepository";
 import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
+import {
+  KnowledgeSource,
+  KnowledgeType,
+  knowledgeSourceValues,
+  knowledgeTypeValues,
+} from "./knowledgeSchema";
 import { createExcerpt } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
@@ -10,8 +20,28 @@ import {
   restoreScrollPosition,
   saveScrollPosition,
 } from "../../lib/utils/scrollRestoration";
+import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
+import { TagRecord, listTags } from "../taxonomy/tagRepository";
 
 const KNOWLEDGE_LIST_SCROLL_KEY = "knowledge-list";
+
+type FilterState = {
+  keyword: string;
+  type: KnowledgeType | "";
+  knowledgeCategoryId: string;
+  tagId: string;
+  source: KnowledgeSource | "";
+  isFavorite: boolean;
+};
+
+const initialFilters: FilterState = {
+  keyword: "",
+  type: "",
+  knowledgeCategoryId: "",
+  tagId: "",
+  source: "",
+  isFavorite: false,
+};
 
 function splitTagNames(tagNames: string | null): string[] {
   if (!tagNames) {
@@ -24,18 +54,82 @@ function splitTagNames(tagNames: string | null): string[] {
     .filter(Boolean);
 }
 
+function createSearchFilters(filters: FilterState): SearchKnowledgeFilters {
+  return {
+    keyword: filters.keyword,
+    type: filters.type,
+    knowledgeCategoryId: filters.knowledgeCategoryId,
+    tagId: filters.tagId,
+    source: filters.source,
+    isFavorite: filters.isFavorite,
+  };
+}
+
+function hasActiveFilters(filters: FilterState): boolean {
+  return (
+    filters.keyword.trim() !== "" ||
+    filters.type !== "" ||
+    filters.knowledgeCategoryId !== "" ||
+    filters.tagId !== "" ||
+    filters.source !== "" ||
+    filters.isFavorite
+  );
+}
+
 export function KnowledgeListPage() {
   const [items, setItems] = useState<KnowledgeListItem[]>([]);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [tags, setTags] = useState<TagRecord[]>([]);
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [optionErrorMessage, setOptionErrorMessage] = useState("");
+  const hasRestoredScroll = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFilterOptions() {
+      try {
+        const [loadedCategories, loadedTags] = await Promise.all([
+          listCategories("knowledge"),
+          listTags(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setCategories(loadedCategories);
+        setTags(loadedTags);
+      } catch (error: unknown) {
+        console.error(error);
+
+        if (isMounted) {
+          setOptionErrorMessage(getErrorMessage(error));
+        }
+      }
+    }
+
+    void loadFilterOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadKnowledgeItems() {
-      const knowledgeItems = await listKnowledgeItems();
+      setStatus("loading");
+      setErrorMessage("");
+
+      const knowledgeItems = await searchKnowledgeItems(
+        createSearchFilters(filters),
+      );
 
       if (!isMounted) {
         return;
@@ -57,15 +151,36 @@ export function KnowledgeListPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
-    if (status !== "ready") {
+    if (status !== "ready" || hasRestoredScroll.current) {
       return;
     }
 
+    hasRestoredScroll.current = true;
     restoreScrollPosition(KNOWLEDGE_LIST_SCROLL_KEY);
   }, [status, items.length]);
+
+  function updateFilter<K extends keyof FilterState>(
+    key: K,
+    value: FilterState[K],
+  ) {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function clearFilters() {
+    setFilters(initialFilters);
+    window.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+  }
+
+  const activeFilters = hasActiveFilters(filters);
 
   return (
     <div>
@@ -90,6 +205,175 @@ export function KnowledgeListPage() {
         商品知識や対応フレーズは、匿名化・一般化した内容として記録します。
       </div>
 
+      {optionErrorMessage && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">
+            絞り込み条件の読み込みに失敗しました。
+          </p>
+          <p className="mt-1 break-all">{optionErrorMessage}</p>
+        </div>
+      )}
+
+      <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="inline-flex items-center gap-2 text-lg font-bold text-slate-900">
+              <Search size={18} />
+              検索・絞り込み
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              タイトル、本文、ナレッジ分類、共通タグを検索対象にします。
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={!activeFilters}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <X size={16} />
+            条件クリア
+          </button>
+        </div>
+
+        <div className="grid gap-4">
+          <div>
+            <label
+              htmlFor="knowledge-search-keyword"
+              className="text-sm font-semibold text-slate-900"
+            >
+              キーワード
+            </label>
+            <input
+              id="knowledge-search-keyword"
+              value={filters.keyword}
+              onChange={(event) => updateFilter("keyword", event.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              placeholder="タイトル、本文、分類名、タグ名で検索"
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label
+                htmlFor="knowledge-type-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                種別
+              </label>
+              <select
+                id="knowledge-type-filter"
+                value={filters.type}
+                onChange={(event) =>
+                  updateFilter("type", event.target.value as KnowledgeType | "")
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {knowledgeTypeValues.map((type) => (
+                  <option key={type} value={type}>
+                    {knowledgeTypeLabels[type]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="knowledge-category-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                ナレッジ分類
+              </label>
+              <select
+                id="knowledge-category-filter"
+                value={filters.knowledgeCategoryId}
+                onChange={(event) =>
+                  updateFilter("knowledgeCategoryId", event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="knowledge-tag-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                共通タグ
+              </label>
+              <select
+                id="knowledge-tag-filter"
+                value={filters.tagId}
+                onChange={(event) => updateFilter("tagId", event.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    #{tag.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label
+                htmlFor="knowledge-source-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                source
+              </label>
+              <select
+                id="knowledge-source-filter"
+                value={filters.source}
+                onChange={(event) =>
+                  updateFilter(
+                    "source",
+                    event.target.value as KnowledgeSource | "",
+                  )
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {knowledgeSourceValues.map((source) => (
+                  <option key={source} value={source}>
+                    {knowledgeSourceLabels[source]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label className="mt-0 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 md:mt-7">
+              <input
+                type="checkbox"
+                checked={filters.isFavorite}
+                onChange={(event) =>
+                  updateFilter("isFavorite", event.target.checked)
+                }
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              お気に入りのみ
+            </label>
+
+            <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 md:mt-7">
+              表示件数:{" "}
+              <span className="font-bold text-slate-900">{items.length}</span>件
+            </div>
+          </div>
+        </div>
+      </section>
+
       {status === "loading" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
           ナレッジを読み込んでいます...
@@ -107,7 +391,9 @@ export function KnowledgeListPage() {
 
       {status === "ready" && items.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">
-          まだナレッジが登録されていません。まずは業務手順や接客フレーズを登録します。
+          {activeFilters
+            ? "条件に一致するナレッジがありません。条件を変更してください。"
+            : "まだナレッジが登録されていません。まずは業務手順や接客フレーズを登録します。"}
         </div>
       )}
 
