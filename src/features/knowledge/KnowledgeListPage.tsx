@@ -6,6 +6,12 @@ import { createExcerpt } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import { Link } from "react-router-dom";
+import {
+  restoreScrollPosition,
+  saveScrollPosition,
+} from "../../lib/utils/scrollRestoration";
+
+const KNOWLEDGE_LIST_SCROLL_KEY = "knowledge-list";
 
 function splitTagNames(tagNames: string | null): string[] {
   if (!tagNames) {
@@ -52,6 +58,14 @@ export function KnowledgeListPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== "ready") {
+      return;
+    }
+
+    restoreScrollPosition(KNOWLEDGE_LIST_SCROLL_KEY);
+  }, [status, items.length]);
 
   return (
     <div>
@@ -112,7 +126,10 @@ export function KnowledgeListPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         to={`/knowledge/${item.id}`}
-                        className="text-lg font-bold text-slate-900 transition hover:text-slate-600"
+                        onClick={() => {
+                          saveScrollPosition(KNOWLEDGE_LIST_SCROLL_KEY);
+                        }}
+                        className="wrap-break-word text-lg font-bold text-slate-900 transition hover:text-slate-600"
                       >
                         {item.title}
                       </Link>
@@ -137,7 +154,7 @@ export function KnowledgeListPage() {
                   </span>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    分類: {item.category_name ?? "未設定"}
+                    ナレッジ分類: {item.category_name ?? "未設定"}
                   </span>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
@@ -170,6 +187,9 @@ export function KnowledgeListPage() {
                 <div className="mt-4 border-t border-slate-100 pt-4">
                   <Link
                     to={`/knowledge/${item.id}`}
+                    onClick={() => {
+                      saveScrollPosition(KNOWLEDGE_LIST_SCROLL_KEY);
+                    }}
                     className="text-sm font-semibold text-slate-900 transition hover:text-slate-600"
                   >
                     詳細を見る

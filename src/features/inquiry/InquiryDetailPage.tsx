@@ -28,6 +28,10 @@ import {
   listTagMatchedKnowledgeCandidates,
   unlinkKnowledgeFromInquiry,
 } from "./inquiryKnowledgeLinkRepository";
+import {
+  restoreScrollPosition,
+  saveScrollPosition,
+} from "../../lib/utils/scrollRestoration";
 
 function splitNames(value: string | null): string[] {
   if (!value) {
@@ -44,6 +48,10 @@ function createLinkedKnowledgePath(knowledgeId: string, inquiryId: string) {
   return `/knowledge/${knowledgeId}?fromInquiryId=${encodeURIComponent(
     inquiryId,
   )}`;
+}
+
+function createInquiryDetailScrollKey(inquiryId: string): string {
+  return `inquiry-detail:${inquiryId}`;
 }
 
 export function InquiryDetailPage() {
@@ -184,6 +192,14 @@ export function InquiryDetailPage() {
       isMounted = false;
     };
   }, [inquiryId]);
+
+  useEffect(() => {
+    if (status !== "ready" || !item) {
+      return;
+    }
+
+    restoreScrollPosition(createInquiryDetailScrollKey(item.id));
+  }, [status, item?.id]);
 
   async function handleLinkKnowledge() {
     if (!item || !selectedKnowledgeId || linkStatus === "saving") {
@@ -667,6 +683,9 @@ function LinkedKnowledgeCard({
         <div className="min-w-0">
           <Link
             to={createLinkedKnowledgePath(knowledge.id, inquiryId)}
+            onClick={() => {
+              saveScrollPosition(createInquiryDetailScrollKey(inquiryId));
+            }}
             className="wrap-break-word text-sm font-bold text-slate-900 transition hover:text-slate-600"
           >
             {knowledge.title}
@@ -740,6 +759,9 @@ function SuggestedKnowledgeCard({
         <div className="min-w-0">
           <Link
             to={createLinkedKnowledgePath(knowledge.id, inquiryId)}
+            onClick={() => {
+              saveScrollPosition(createInquiryDetailScrollKey(inquiryId));
+            }}
             className="wrap-break-word text-sm font-bold text-slate-900 transition hover:text-slate-600"
           >
             {knowledge.title}
@@ -836,6 +858,9 @@ function KeywordSuggestedKnowledgeCard({
         <div className="min-w-0">
           <Link
             to={createLinkedKnowledgePath(knowledge.id, inquiryId)}
+            onClick={() => {
+              saveScrollPosition(createInquiryDetailScrollKey(inquiryId));
+            }}
             className="wrap-break-word text-sm font-bold text-slate-900 transition hover:text-slate-600"
           >
             {knowledge.title}

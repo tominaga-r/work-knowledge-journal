@@ -6,6 +6,10 @@ import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import { inquirySourceLabels } from "./inquiryLabels";
 import { InquiryListItem, listInquiryNotes } from "./inquiryRepository";
+import {
+  restoreScrollPosition,
+  saveScrollPosition,
+} from "../../lib/utils/scrollRestoration";
 
 function splitNames(value: string | null): string[] {
   if (!value) {
@@ -17,6 +21,8 @@ function splitNames(value: string | null): string[] {
     .map((name) => name.trim())
     .filter(Boolean);
 }
+
+const INQUIRY_LIST_SCROLL_KEY = "inquiry-list";
 
 export function InquiryListPage() {
   const [items, setItems] = useState<InquiryListItem[]>([]);
@@ -52,6 +58,14 @@ export function InquiryListPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== "ready") {
+      return;
+    }
+
+    restoreScrollPosition(INQUIRY_LIST_SCROLL_KEY);
+  }, [status, items.length]);
 
   return (
     <div>
@@ -120,6 +134,9 @@ export function InquiryListPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         to={`/inquiries/${item.id}`}
+                        onClick={() => {
+                          saveScrollPosition(INQUIRY_LIST_SCROLL_KEY);
+                        }}
                         className="wrap-break-word text-lg font-bold text-slate-900 transition hover:text-slate-600"
                       >
                         {item.title}
@@ -187,6 +204,9 @@ export function InquiryListPage() {
 
                   <Link
                     to={`/inquiries/${item.id}`}
+                    onClick={() => {
+                      saveScrollPosition(INQUIRY_LIST_SCROLL_KEY);
+                    }}
                     className="text-sm font-semibold text-slate-700 transition hover:text-slate-900"
                   >
                     詳細を見る
