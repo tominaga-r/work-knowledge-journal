@@ -28,6 +28,24 @@ export type InquiryListItem = InquiryRecord & {
   tag_ids: string | null;
 };
 
+export type SearchInquiryFilters = {
+  keyword?: string;
+  inquiryCategoryId?: string;
+  tagId?: string;
+  source?: InquirySource | "";
+  isFavorite?: boolean;
+};
+
+function normalizeOptionalId(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue ? trimmedValue : null;
+}
+
 async function replaceInquiryTags(
   inquiryId: string,
   tagIds: string[],
@@ -51,6 +69,46 @@ async function replaceInquiryTags(
       [inquiryId, tagId],
     );
   }
+}
+
+function createInquiryListSelectSql(whereClause = ""): string {
+  return `SELECT
+      inquiry_notes.id,
+      inquiry_notes.title,
+      inquiry_notes.content,
+      inquiry_notes.response_note,
+      inquiry_notes.next_action,
+      inquiry_notes.occurred_on,
+      inquiry_notes.inquiry_category_id,
+      inquiry_notes.source,
+      inquiry_notes.is_favorite,
+      inquiry_notes.created_at,
+      inquiry_notes.updated_at,
+      inquiry_categories.name as category_name,
+      GROUP_CONCAT(tags.name, ',') as tag_names,
+      GROUP_CONCAT(tags.id, ',') as tag_ids
+    FROM inquiry_notes
+    LEFT JOIN inquiry_categories
+      ON inquiry_notes.inquiry_category_id = inquiry_categories.id
+    LEFT JOIN inquiry_tags
+      ON inquiry_notes.id = inquiry_tags.inquiry_id
+    LEFT JOIN tags
+      ON inquiry_tags.tag_id = tags.id
+    ${whereClause}
+    GROUP BY
+      inquiry_notes.id,
+      inquiry_notes.title,
+      inquiry_notes.content,
+      inquiry_notes.response_note,
+      inquiry_notes.next_action,
+      inquiry_notes.occurred_on,
+      inquiry_notes.inquiry_category_id,
+      inquiry_notes.source,
+      inquiry_notes.is_favorite,
+      inquiry_notes.created_at,
+      inquiry_notes.updated_at,
+      inquiry_categories.name
+    ORDER BY inquiry_notes.occurred_on DESC, inquiry_notes.updated_at DESC`;
 }
 
 export async function createInquiryNote(
@@ -118,43 +176,79 @@ export async function createInquiryNote(
 export async function listInquiryNotes(): Promise<InquiryListItem[]> {
   const db = await getDatabase();
 
+  return db.select<InquiryListItem[]>(createInquiryListSelectSql());
+}
+
+export async function searchInquiryNotes(
+  filters: SearchInquiryFilters,
+): Promise<InquiryListItem[]> {
+  const db = await getDatabase();
+
+  const whereConditions: string[] = [];
+  const values: Array<string | number> = [];
+
+  function addValue(value: string | number): string {
+    values.push(value);
+    return `$${values.length}`;
+  }
+
+  const keyword = filters.keyword?.trim();
+
+  if (keyword) {
+    const keywordParam = addValue(`%${keyword}%`);
+
+    whereConditions.push(
+      `(inquiry_notes.title LIKE ${keywordParam}
+        OR inquiry_notes.content LIKE ${keywordParam}
+        OR inquiry_notes.response_note LIKE ${keywordParam}
+        OR inquiry_notes.next_action LIKE ${keywordParam}
+        OR inquiry_categories.name LIKE ${keywordParam}
+        OR EXISTS (
+          SELECT 1
+          FROM inquiry_tags as keyword_inquiry_tags
+          INNER JOIN tags as keyword_tags
+            ON keyword_inquiry_tags.tag_id = keyword_tags.id
+          WHERE keyword_inquiry_tags.inquiry_id = inquiry_notes.id
+            AND keyword_tags.name LIKE ${keywordParam}
+        ))`,
+    );
+  }
+
+  const categoryId = normalizeOptionalId(filters.inquiryCategoryId);
+
+  if (categoryId) {
+    whereConditions.push(
+      `inquiry_notes.inquiry_category_id = ${addValue(categoryId)}`,
+    );
+  }
+
+  const tagId = normalizeOptionalId(filters.tagId);
+
+  if (tagId) {
+    whereConditions.push(
+      `EXISTS (
+        SELECT 1
+        FROM inquiry_tags as filter_inquiry_tags
+        WHERE filter_inquiry_tags.inquiry_id = inquiry_notes.id
+          AND filter_inquiry_tags.tag_id = ${addValue(tagId)}
+      )`,
+    );
+  }
+
+  if (filters.source) {
+    whereConditions.push(`inquiry_notes.source = ${addValue(filters.source)}`);
+  }
+
+  if (filters.isFavorite) {
+    whereConditions.push("inquiry_notes.is_favorite = 1");
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
   return db.select<InquiryListItem[]>(
-    `SELECT
-      inquiry_notes.id,
-      inquiry_notes.title,
-      inquiry_notes.content,
-      inquiry_notes.response_note,
-      inquiry_notes.next_action,
-      inquiry_notes.occurred_on,
-      inquiry_notes.inquiry_category_id,
-      inquiry_notes.source,
-      inquiry_notes.is_favorite,
-      inquiry_notes.created_at,
-      inquiry_notes.updated_at,
-      inquiry_categories.name as category_name,
-      GROUP_CONCAT(tags.name, ',') as tag_names,
-      GROUP_CONCAT(tags.id, ',') as tag_ids
-    FROM inquiry_notes
-    LEFT JOIN inquiry_categories
-      ON inquiry_notes.inquiry_category_id = inquiry_categories.id
-    LEFT JOIN inquiry_tags
-      ON inquiry_notes.id = inquiry_tags.inquiry_id
-    LEFT JOIN tags
-      ON inquiry_tags.tag_id = tags.id
-    GROUP BY
-      inquiry_notes.id,
-      inquiry_notes.title,
-      inquiry_notes.content,
-      inquiry_notes.response_note,
-      inquiry_notes.next_action,
-      inquiry_notes.occurred_on,
-      inquiry_notes.inquiry_category_id,
-      inquiry_notes.source,
-      inquiry_notes.is_favorite,
-      inquiry_notes.created_at,
-      inquiry_notes.updated_at,
-      inquiry_categories.name
-    ORDER BY inquiry_notes.occurred_on DESC, inquiry_notes.updated_at DESC`,
+    createInquiryListSelectSql(whereClause),
+    values,
   );
 }
 
@@ -170,43 +264,8 @@ export async function getInquiryNoteById(
   const db = await getDatabase();
 
   const rows = await db.select<InquiryListItem[]>(
-    `SELECT
-      inquiry_notes.id,
-      inquiry_notes.title,
-      inquiry_notes.content,
-      inquiry_notes.response_note,
-      inquiry_notes.next_action,
-      inquiry_notes.occurred_on,
-      inquiry_notes.inquiry_category_id,
-      inquiry_notes.source,
-      inquiry_notes.is_favorite,
-      inquiry_notes.created_at,
-      inquiry_notes.updated_at,
-      inquiry_categories.name as category_name,
-      GROUP_CONCAT(tags.name, ',') as tag_names,
-      GROUP_CONCAT(tags.id, ',') as tag_ids
-    FROM inquiry_notes
-    LEFT JOIN inquiry_categories
-      ON inquiry_notes.inquiry_category_id = inquiry_categories.id
-    LEFT JOIN inquiry_tags
-      ON inquiry_notes.id = inquiry_tags.inquiry_id
-    LEFT JOIN tags
-      ON inquiry_tags.tag_id = tags.id
-    WHERE inquiry_notes.id = $1
-    GROUP BY
-      inquiry_notes.id,
-      inquiry_notes.title,
-      inquiry_notes.content,
-      inquiry_notes.response_note,
-      inquiry_notes.next_action,
-      inquiry_notes.occurred_on,
-      inquiry_notes.inquiry_category_id,
-      inquiry_notes.source,
-      inquiry_notes.is_favorite,
-      inquiry_notes.created_at,
-      inquiry_notes.updated_at,
-      inquiry_categories.name
-    LIMIT 1`,
+    `${createInquiryListSelectSql("WHERE inquiry_notes.id = $1")}
+     LIMIT 1`,
     [normalizedId],
   );
 

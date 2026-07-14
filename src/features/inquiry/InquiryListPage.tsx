@@ -1,15 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Star } from "lucide-react";
+import { Plus, Search, Star, X } from "lucide-react";
 import { createExcerpt } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import { inquirySourceLabels } from "./inquiryLabels";
-import { InquiryListItem, listInquiryNotes } from "./inquiryRepository";
+import {
+  InquiryListItem,
+  SearchInquiryFilters,
+  searchInquiryNotes,
+} from "./inquiryRepository";
+import { InquirySource, inquirySourceValues } from "./inquirySchema";
 import {
   restoreScrollPosition,
   saveScrollPosition,
 } from "../../lib/utils/scrollRestoration";
+import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
+import { TagRecord, listTags } from "../taxonomy/tagRepository";
+
+const INQUIRY_LIST_SCROLL_KEY = "inquiry-list";
+
+type FilterState = {
+  keyword: string;
+  inquiryCategoryId: string;
+  tagId: string;
+  source: InquirySource | "";
+  isFavorite: boolean;
+};
+
+const initialFilters: FilterState = {
+  keyword: "",
+  inquiryCategoryId: "",
+  tagId: "",
+  source: "",
+  isFavorite: false,
+};
 
 function splitNames(value: string | null): string[] {
   if (!value) {
@@ -22,37 +47,64 @@ function splitNames(value: string | null): string[] {
     .filter(Boolean);
 }
 
-const INQUIRY_LIST_SCROLL_KEY = "inquiry-list";
+function createSearchFilters(filters: FilterState): SearchInquiryFilters {
+  return {
+    keyword: filters.keyword,
+    inquiryCategoryId: filters.inquiryCategoryId,
+    tagId: filters.tagId,
+    source: filters.source,
+    isFavorite: filters.isFavorite,
+  };
+}
+
+function hasActiveFilters(filters: FilterState): boolean {
+  return (
+    filters.keyword.trim() !== "" ||
+    filters.inquiryCategoryId !== "" ||
+    filters.tagId !== "" ||
+    filters.source !== "" ||
+    filters.isFavorite
+  );
+}
 
 export function InquiryListPage() {
   const [items, setItems] = useState<InquiryListItem[]>([]);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [tags, setTags] = useState<TagRecord[]>([]);
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
   const [errorMessage, setErrorMessage] = useState("");
+  const [optionErrorMessage, setOptionErrorMessage] = useState("");
+  const hasRestoredScroll = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadItems() {
+    async function loadFilterOptions() {
       try {
-        const loadedItems = await listInquiryNotes();
+        const [loadedCategories, loadedTags] = await Promise.all([
+          listCategories("inquiry"),
+          listTags(),
+        ]);
 
-        if (isMounted) {
-          setItems(loadedItems);
-          setStatus("ready");
+        if (!isMounted) {
+          return;
         }
+
+        setCategories(loadedCategories);
+        setTags(loadedTags);
       } catch (error: unknown) {
         console.error(error);
 
         if (isMounted) {
-          setErrorMessage(getErrorMessage(error));
-          setStatus("error");
+          setOptionErrorMessage(getErrorMessage(error));
         }
       }
     }
 
-    void loadItems();
+    void loadFilterOptions();
 
     return () => {
       isMounted = false;
@@ -60,12 +112,64 @@ export function InquiryListPage() {
   }, []);
 
   useEffect(() => {
-    if (status !== "ready") {
+    let isMounted = true;
+
+    async function loadItems() {
+      setStatus("loading");
+      setErrorMessage("");
+
+      const loadedItems = await searchInquiryNotes(
+        createSearchFilters(filters),
+      );
+
+      if (isMounted) {
+        setItems(loadedItems);
+        setStatus("ready");
+      }
+    }
+
+    loadItems().catch((error: unknown) => {
+      console.error(error);
+
+      if (isMounted) {
+        setErrorMessage(getErrorMessage(error));
+        setStatus("error");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [filters]);
+
+  useEffect(() => {
+    if (status !== "ready" || hasRestoredScroll.current) {
       return;
     }
 
+    hasRestoredScroll.current = true;
     restoreScrollPosition(INQUIRY_LIST_SCROLL_KEY);
   }, [status, items.length]);
+
+  function updateFilter<K extends keyof FilterState>(
+    key: K,
+    value: FilterState[K],
+  ) {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function clearFilters() {
+    setFilters(initialFilters);
+    window.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+  }
+
+  const activeFilters = hasActiveFilters(filters);
 
   return (
     <div>
@@ -86,6 +190,151 @@ export function InquiryListPage() {
         </Link>
       </div>
 
+      {optionErrorMessage && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">
+            絞り込み条件の読み込みに失敗しました。
+          </p>
+          <p className="mt-1 break-all">{optionErrorMessage}</p>
+        </div>
+      )}
+
+      <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="inline-flex items-center gap-2 text-lg font-bold text-slate-900">
+              <Search size={18} />
+              検索・絞り込み
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              タイトル、問い合わせ概要、対応メモ、次に活かすこと、問い合わせ分類、共通タグを検索対象にします。
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={!activeFilters}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <X size={16} />
+            条件クリア
+          </button>
+        </div>
+
+        <div className="grid gap-4">
+          <div>
+            <label
+              htmlFor="inquiry-search-keyword"
+              className="text-sm font-semibold text-slate-900"
+            >
+              キーワード
+            </label>
+            <input
+              id="inquiry-search-keyword"
+              value={filters.keyword}
+              onChange={(event) => updateFilter("keyword", event.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              placeholder="タイトル、概要、対応メモ、分類名、タグ名で検索"
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label
+                htmlFor="inquiry-category-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                問い合わせ分類
+              </label>
+              <select
+                id="inquiry-category-filter"
+                value={filters.inquiryCategoryId}
+                onChange={(event) =>
+                  updateFilter("inquiryCategoryId", event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="inquiry-tag-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                共通タグ
+              </label>
+              <select
+                id="inquiry-tag-filter"
+                value={filters.tagId}
+                onChange={(event) => updateFilter("tagId", event.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    #{tag.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="inquiry-source-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                source
+              </label>
+              <select
+                id="inquiry-source-filter"
+                value={filters.source}
+                onChange={(event) =>
+                  updateFilter(
+                    "source",
+                    event.target.value as InquirySource | "",
+                  )
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">すべて</option>
+                {inquirySourceValues.map((source) => (
+                  <option key={source} value={source}>
+                    {inquirySourceLabels[source]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={filters.isFavorite}
+                onChange={(event) =>
+                  updateFilter("isFavorite", event.target.checked)
+                }
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              お気に入りのみ
+            </label>
+
+            <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
+              表示件数:{" "}
+              <span className="font-bold text-slate-900">{items.length}</span>件
+            </div>
+          </div>
+        </div>
+      </section>
+
       {status === "loading" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
           問い合わせメモを読み込んでいます...
@@ -104,18 +353,25 @@ export function InquiryListPage() {
       {status === "ready" && items.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8">
           <p className="text-sm font-semibold text-slate-900">
-            問い合わせメモがまだありません。
+            {activeFilters
+              ? "条件に一致する問い合わせメモがありません。"
+              : "問い合わせメモがまだありません。"}
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            よくある問い合わせや対応で気づいたことを、個人情報を含めずに記録できます。
+            {activeFilters
+              ? "条件を変更するか、条件クリアを押してください。"
+              : "よくある問い合わせや対応で気づいたことを、個人情報を含めずに記録できます。"}
           </p>
-          <Link
-            to="/inquiries/new"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            <Plus size={16} />
-            最初の問い合わせメモを作成
-          </Link>
+
+          {!activeFilters && (
+            <Link
+              to="/inquiries/new"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              <Plus size={16} />
+              最初の問い合わせメモを作成
+            </Link>
+          )}
         </div>
       )}
 
