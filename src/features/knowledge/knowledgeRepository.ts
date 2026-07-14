@@ -37,6 +37,7 @@ export type SearchKnowledgeFilters = {
   tagId?: string;
   source?: KnowledgeSource | "";
   isFavorite?: boolean;
+  targetMonth?: string;
 };
 
 function normalizeOptionalId(value: string | null | undefined): string | null {
@@ -47,6 +48,20 @@ function normalizeOptionalId(value: string | null | undefined): string | null {
   const trimmedValue = value.trim();
 
   return trimmedValue ? trimmedValue : null;
+}
+
+function normalizeMonth(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+
+  if (!/^\d{4}-\d{2}$/.test(trimmedValue)) {
+    return null;
+  }
+
+  return trimmedValue;
 }
 
 async function replaceKnowledgeTags(
@@ -238,6 +253,14 @@ export async function searchKnowledgeItems(
 
   if (filters.isFavorite) {
     whereConditions.push("knowledge_items.is_favorite = 1");
+  }
+
+  const targetMonth = normalizeMonth(filters.targetMonth);
+
+  if (targetMonth) {
+    whereConditions.push(
+      `substr(knowledge_items.created_at, 1, 7) = ${addValue(targetMonth)}`,
+    );
   }
 
   const whereClause =

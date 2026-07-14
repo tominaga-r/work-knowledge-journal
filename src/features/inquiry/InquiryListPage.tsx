@@ -26,6 +26,7 @@ type FilterState = {
   tagId: string;
   source: InquirySource | "";
   isFavorite: boolean;
+  targetMonth: string;
 };
 
 const initialFilters: FilterState = {
@@ -34,6 +35,7 @@ const initialFilters: FilterState = {
   tagId: "",
   source: "",
   isFavorite: false,
+  targetMonth: "",
 };
 
 function splitNames(value: string | null): string[] {
@@ -54,6 +56,7 @@ function createSearchFilters(filters: FilterState): SearchInquiryFilters {
     tagId: filters.tagId,
     source: filters.source,
     isFavorite: filters.isFavorite,
+    targetMonth: filters.targetMonth,
   };
 }
 
@@ -63,7 +66,8 @@ function hasActiveFilters(filters: FilterState): boolean {
     filters.inquiryCategoryId !== "" ||
     filters.tagId !== "" ||
     filters.source !== "" ||
-    filters.isFavorite
+    filters.isFavorite ||
+    filters.targetMonth !== ""
   );
 }
 
@@ -323,7 +327,25 @@ export function InquiryListPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+            <div>
+              <label
+                htmlFor="inquiry-month-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                発生月
+              </label>
+              <input
+                id="inquiry-month-filter"
+                type="month"
+                value={filters.targetMonth}
+                onChange={(event) =>
+                  updateFilter("targetMonth", event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
+
+            <label className="mt-0 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 md:mt-7">
               <input
                 type="checkbox"
                 checked={filters.isFavorite}
@@ -335,7 +357,7 @@ export function InquiryListPage() {
               お気に入りのみ
             </label>
 
-            <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
+            <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 md:mt-7">
               表示件数:{" "}
               <span className="font-bold text-slate-900">{items.length}</span>件
             </div>

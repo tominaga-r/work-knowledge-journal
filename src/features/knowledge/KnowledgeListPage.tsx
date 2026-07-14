@@ -32,6 +32,7 @@ type FilterState = {
   tagId: string;
   source: KnowledgeSource | "";
   isFavorite: boolean;
+  targetMonth: string;
 };
 
 const initialFilters: FilterState = {
@@ -41,6 +42,7 @@ const initialFilters: FilterState = {
   tagId: "",
   source: "",
   isFavorite: false,
+  targetMonth: "",
 };
 
 function splitTagNames(tagNames: string | null): string[] {
@@ -62,6 +64,7 @@ function createSearchFilters(filters: FilterState): SearchKnowledgeFilters {
     tagId: filters.tagId,
     source: filters.source,
     isFavorite: filters.isFavorite,
+    targetMonth: filters.targetMonth,
   };
 }
 
@@ -72,7 +75,8 @@ function hasActiveFilters(filters: FilterState): boolean {
     filters.knowledgeCategoryId !== "" ||
     filters.tagId !== "" ||
     filters.source !== "" ||
-    filters.isFavorite
+    filters.isFavorite ||
+    filters.targetMonth !== ""
   );
 }
 
@@ -230,7 +234,7 @@ export function KnowledgeListPage() {
               検索・絞り込み
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              タイトル、本文、ナレッジ分類、共通タグを検索対象にします。
+              ナレッジ種類は情報の用途、ナレッジ分類は業務領域、共通タグは横断的な目印として使います。
             </p>
           </div>
 
@@ -362,6 +366,24 @@ export function KnowledgeListPage() {
               </select>
             </div>
 
+            <div>
+              <label
+                htmlFor="knowledge-month-filter"
+                className="text-sm font-semibold text-slate-900"
+              >
+                作成月
+              </label>
+              <input
+                id="knowledge-month-filter"
+                type="month"
+                value={filters.targetMonth}
+                onChange={(event) =>
+                  updateFilter("targetMonth", event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
+
             <label className="mt-0 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 md:mt-7">
               <input
                 type="checkbox"
@@ -373,11 +395,11 @@ export function KnowledgeListPage() {
               />
               お気に入りのみ
             </label>
+          </div>
 
-            <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 md:mt-7">
-              表示件数:{" "}
-              <span className="font-bold text-slate-900">{items.length}</span>件
-            </div>
+          <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
+            表示件数:{" "}
+            <span className="font-bold text-slate-900">{items.length}</span>件
           </div>
         </div>
       </section>
