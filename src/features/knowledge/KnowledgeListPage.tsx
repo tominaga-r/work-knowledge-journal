@@ -17,7 +17,7 @@ import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import { Link } from "react-router-dom";
 import {
-  restoreScrollPosition,
+  consumeScrollPosition,
   saveScrollPosition,
 } from "../../lib/utils/scrollRestoration";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
@@ -159,7 +159,15 @@ export function KnowledgeListPage() {
     }
 
     hasRestoredScroll.current = true;
-    restoreScrollPosition(KNOWLEDGE_LIST_SCROLL_KEY);
+
+    const restored = consumeScrollPosition(KNOWLEDGE_LIST_SCROLL_KEY);
+
+    if (!restored) {
+      window.scrollTo({
+        top: 0,
+        behavior: "auto",
+      });
+    }
   }, [status, items.length]);
 
   function updateFilter<K extends keyof FilterState>(
@@ -260,7 +268,7 @@ export function KnowledgeListPage() {
                 htmlFor="knowledge-type-filter"
                 className="text-sm font-semibold text-slate-900"
               >
-                種別
+                ナレッジ種類
               </label>
               <select
                 id="knowledge-type-filter"
@@ -436,7 +444,7 @@ export function KnowledgeListPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    種別: {knowledgeTypeLabels[item.type]}
+                    ナレッジ種類: {knowledgeTypeLabels[item.type]}
                   </span>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">

@@ -708,7 +708,10 @@ function LinkedKnowledgeCard({
       </div>
 
       <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
-        <MiniInfo label="種別" value={knowledgeTypeLabels[knowledge.type]} />
+        <MiniInfo
+          label="ナレッジ種類"
+          value={knowledgeTypeLabels[knowledge.type]}
+        />
         <MiniInfo
           label="ナレッジ分類"
           value={knowledge.category_name ?? "未設定"}
@@ -807,7 +810,10 @@ function SuggestedKnowledgeCard({
       </div>
 
       <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
-        <MiniInfo label="種別" value={knowledgeTypeLabels[knowledge.type]} />
+        <MiniInfo
+          label="ナレッジ種類"
+          value={knowledgeTypeLabels[knowledge.type]}
+        />
         <MiniInfo
           label="ナレッジ分類"
           value={knowledge.category_name ?? "未設定"}
@@ -906,7 +912,10 @@ function KeywordSuggestedKnowledgeCard({
       </div>
 
       <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
-        <MiniInfo label="種別" value={knowledgeTypeLabels[knowledge.type]} />
+        <MiniInfo
+          label="ナレッジ種類"
+          value={knowledgeTypeLabels[knowledge.type]}
+        />
         <MiniInfo
           label="ナレッジ分類"
           value={knowledge.category_name ?? "未設定"}

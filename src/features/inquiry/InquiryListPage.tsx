@@ -12,7 +12,7 @@ import {
 } from "./inquiryRepository";
 import { InquirySource, inquirySourceValues } from "./inquirySchema";
 import {
-  restoreScrollPosition,
+  consumeScrollPosition,
   saveScrollPosition,
 } from "../../lib/utils/scrollRestoration";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
@@ -148,7 +148,15 @@ export function InquiryListPage() {
     }
 
     hasRestoredScroll.current = true;
-    restoreScrollPosition(INQUIRY_LIST_SCROLL_KEY);
+
+    const restored = consumeScrollPosition(INQUIRY_LIST_SCROLL_KEY);
+
+    if (!restored) {
+      window.scrollTo({
+        top: 0,
+        behavior: "auto",
+      });
+    }
   }, [status, items.length]);
 
   function updateFilter<K extends keyof FilterState>(

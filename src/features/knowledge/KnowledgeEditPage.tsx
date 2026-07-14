@@ -469,7 +469,7 @@ export function KnowledgeEditPage() {
                 htmlFor="knowledge-edit-type"
                 className="text-sm font-semibold text-slate-900"
               >
-                種別
+                ナレッジ種類
               </label>
               <select
                 id="knowledge-edit-type"
