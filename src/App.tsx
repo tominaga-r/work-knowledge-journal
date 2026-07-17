@@ -38,13 +38,14 @@ import { InquiryListPage } from "./features/inquiry/InquiryListPage";
 import { InquiryCreatePage } from "./features/inquiry/InquiryCreatePage";
 import { InquiryDetailPage } from "./features/inquiry/InquiryDetailPage";
 import { InquiryEditPage } from "./features/inquiry/InquiryEditPage";
+import { MonthlyReviewPage } from "./features/review/MonthlyReviewPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
   { to: "/knowledge", label: "ナレッジ", icon: BookOpen },
   { to: "/inquiries", label: "問い合わせメモ", icon: MessageSquareText },
   { to: "/monthly-reviews", label: "月次振り返り", icon: CalendarCheck },
-  { to: "/taxonomy", label: "分類管理 ", icon: Tags },
+  { to: "/taxonomy", label: "分類管理", icon: Tags },
   { to: "/settings", label: "設定", icon: Settings },
 ];
 
@@ -291,12 +292,7 @@ export default function App() {
                 />
                 <Route
                   path="/monthly-reviews"
-                  element={
-                    <PlaceholderPage
-                      title="月次振り返り"
-                      description="対象月のナレッジや問い合わせメモをもとに、月次振り返りを作成します。"
-                    />
-                  }
+                  element={<MonthlyReviewPage />}
                 />
                 <Route path="/taxonomy" element={<TaxonomyPage />} />
                 <Route
