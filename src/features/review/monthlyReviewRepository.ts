@@ -33,6 +33,11 @@ export type SaveMonthlyReviewInput = {
   freeMemo: string;
 };
 
+export type CreateMonthlyReviewMarkdownInput = {
+  summary: MonthlyReviewSummary;
+  review: MonthlyReviewRecord | null;
+};
+
 function normalizeTargetMonth(targetMonth: string): string {
   const normalizedMonth = targetMonth.trim();
 
@@ -51,6 +56,24 @@ function normalizeText(value: string, maxLength: number): string {
   }
 
   return normalizedValue;
+}
+
+function createMonthLabel(targetMonth: string): string {
+  const [year, month] = targetMonth.split("-");
+
+  if (!year || !month) {
+    return targetMonth;
+  }
+
+  return `${year}年${Number(month)}月`;
+}
+
+function createMarkdownSection(title: string, value: string): string {
+  const normalizedValue = value.trim();
+
+  return `## ${title}
+
+${normalizedValue || "未記入"}`;
 }
 
 export async function getMonthlyReviewSummary(
@@ -194,4 +217,30 @@ export async function saveMonthlyReview(
   );
 
   return createdReview;
+}
+
+export function createMonthlyReviewMarkdown({
+  summary,
+  review,
+}: CreateMonthlyReviewMarkdownInput): string {
+  const monthLabel = createMonthLabel(summary.targetMonth);
+
+  const markdownSections = [
+    `# ${monthLabel} 月次振り返り`,
+    `## 月次集計
+
+- 作成されたナレッジ: ${summary.knowledgeCount}件
+- 発生した問い合わせメモ: ${summary.inquiryCount}件`,
+    createMarkdownSection("月の概要", review?.summary ?? ""),
+    createMarkdownSection("学び・気づき", review?.learnings ?? ""),
+    createMarkdownSection("課題", review?.issues ?? ""),
+    createMarkdownSection(
+      "多かった問い合わせ・話題",
+      review?.frequent_topics ?? "",
+    ),
+    createMarkdownSection("来月の目標", review?.next_goals ?? ""),
+    createMarkdownSection("自由メモ", review?.free_memo ?? ""),
+  ];
+
+  return `${markdownSections.join("\n\n")}\n`;
 }

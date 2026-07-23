@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarCheck,
+  Clipboard,
   FileText,
   MessageSquareText,
   RefreshCw,
@@ -12,6 +13,7 @@ import { formatDateTime } from "../../lib/utils/format";
 import {
   MonthlyReviewRecord,
   MonthlyReviewSummary,
+  createMonthlyReviewMarkdown,
   getMonthlyReviewByMonth,
   getMonthlyReviewSummary,
   saveMonthlyReview,
@@ -80,8 +82,12 @@ export function MonthlyReviewPage() {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const [copyStatus, setCopyStatus] = useState<
+    "idle" | "copying" | "copied" | "error"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [saveErrorMessage, setSaveErrorMessage] = useState("");
+  const [copyErrorMessage, setCopyErrorMessage] = useState("");
 
   const monthLabel = useMemo(() => {
     const [year, month] = targetMonth.split("-");
@@ -93,14 +99,27 @@ export function MonthlyReviewPage() {
     return `${year}年${Number(month)}月`;
   }, [targetMonth]);
 
+  const markdownText = useMemo(() => {
+    if (!summary) {
+      return "";
+    }
+
+    return createMonthlyReviewMarkdown({
+      summary,
+      review,
+    });
+  }, [summary, review]);
+
   useEffect(() => {
     let isMounted = true;
 
     async function loadMonthlyReview() {
       setStatus("loading");
       setSaveStatus("idle");
+      setCopyStatus("idle");
       setErrorMessage("");
       setSaveErrorMessage("");
+      setCopyErrorMessage("");
 
       const [loadedSummary, loadedReview] = await Promise.all([
         getMonthlyReviewSummary(targetMonth),
@@ -151,6 +170,10 @@ export function MonthlyReviewPage() {
     if (saveStatus === "saved") {
       setSaveStatus("idle");
     }
+
+    if (copyStatus === "copied") {
+      setCopyStatus("idle");
+    }
   }
 
   async function handleSave() {
@@ -171,10 +194,29 @@ export function MonthlyReviewPage() {
       setReview(savedReview);
       setForm(createFormFromReview(savedReview));
       setSaveStatus("saved");
+      setCopyStatus("idle");
     } catch (error: unknown) {
       console.error(error);
       setSaveErrorMessage(getErrorMessage(error));
       setSaveStatus("error");
+    }
+  }
+
+  async function handleCopyMarkdown() {
+    if (!markdownText) {
+      return;
+    }
+
+    setCopyStatus("copying");
+    setCopyErrorMessage("");
+
+    try {
+      await navigator.clipboard.writeText(markdownText);
+      setCopyStatus("copied");
+    } catch (error: unknown) {
+      console.error(error);
+      setCopyErrorMessage(getErrorMessage(error));
+      setCopyStatus("error");
     }
   }
 
@@ -341,6 +383,49 @@ export function MonthlyReviewPage() {
                 {saveStatus === "saving" ? "保存中..." : "保存する"}
               </button>
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Clipboard size={20} className="text-slate-700" />
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Markdown出力
+                  </h2>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  GitHub、社内メモ、Notion、Teamsなどに貼り付けやすいMarkdown形式で出力します。
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void handleCopyMarkdown()}
+                disabled={copyStatus === "copying" || !markdownText}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Clipboard size={16} />
+                {copyStatus === "copying" ? "コピー中..." : "コピーする"}
+              </button>
+            </div>
+
+            {copyStatus === "copied" && (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                Markdownをクリップボードにコピーしました。
+              </div>
+            )}
+
+            {copyStatus === "error" && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <p className="font-semibold">コピーに失敗しました。</p>
+                <p className="mt-1 break-all">{copyErrorMessage}</p>
+              </div>
+            )}
+
+            <pre className="mt-5 max-h-130 overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-950 p-5 text-sm leading-6 text-slate-100">
+              {markdownText}
+            </pre>
           </section>
         </div>
       )}
