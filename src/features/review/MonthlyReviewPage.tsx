@@ -35,6 +35,23 @@ const emptyForm: ReviewFormState = {
   freeMemo: "",
 };
 
+const MONTHLY_REVIEW_TARGET_MONTH_KEY =
+  "work-knowledge-journal:monthly-review:target-month";
+
+function isValidMonth(value: string): boolean {
+  return /^\d{4}-\d{2}$/.test(value);
+}
+
+function getInitialTargetMonth(): string {
+  const savedMonth = sessionStorage.getItem(MONTHLY_REVIEW_TARGET_MONTH_KEY);
+
+  if (savedMonth && isValidMonth(savedMonth)) {
+    return savedMonth;
+  }
+
+  return currentMonthString();
+}
+
 function createFormFromReview(
   review: MonthlyReviewRecord | null,
 ): ReviewFormState {
@@ -53,7 +70,7 @@ function createFormFromReview(
 }
 
 export function MonthlyReviewPage() {
-  const [targetMonth, setTargetMonth] = useState(currentMonthString());
+  const [targetMonth, setTargetMonth] = useState(getInitialTargetMonth);
   const [summary, setSummary] = useState<MonthlyReviewSummary | null>(null);
   const [review, setReview] = useState<MonthlyReviewRecord | null>(null);
   const [form, setForm] = useState<ReviewFormState>(emptyForm);
@@ -113,6 +130,14 @@ export function MonthlyReviewPage() {
       isMounted = false;
     };
   }, [targetMonth]);
+
+  function handleTargetMonthChange(value: string) {
+    setTargetMonth(value);
+
+    if (isValidMonth(value)) {
+      sessionStorage.setItem(MONTHLY_REVIEW_TARGET_MONTH_KEY, value);
+    }
+  }
 
   function updateForm<K extends keyof ReviewFormState>(
     key: K,
@@ -174,7 +199,7 @@ export function MonthlyReviewPage() {
             id="monthly-review-target-month"
             type="month"
             value={targetMonth}
-            onChange={(event) => setTargetMonth(event.target.value)}
+            onChange={(event) => handleTargetMonthChange(event.target.value)}
             className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
           />
         </div>
