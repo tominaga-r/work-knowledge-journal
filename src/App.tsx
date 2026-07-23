@@ -39,6 +39,7 @@ import { InquiryCreatePage } from "./features/inquiry/InquiryCreatePage";
 import { InquiryDetailPage } from "./features/inquiry/InquiryDetailPage";
 import { InquiryEditPage } from "./features/inquiry/InquiryEditPage";
 import { MonthlyReviewPage } from "./features/review/MonthlyReviewPage";
+import { BackupPage } from "./features/settings/BackupPage";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -239,23 +240,6 @@ function DashboardPage() {
   );
 }
 
-function PlaceholderPage({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <PageHeader title={title} description={description} />
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">
-        この画面は次のステップで実装します。
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -295,15 +279,7 @@ export default function App() {
                   element={<MonthlyReviewPage />}
                 />
                 <Route path="/taxonomy" element={<TaxonomyPage />} />
-                <Route
-                  path="/settings"
-                  element={
-                    <PlaceholderPage
-                      title="設定"
-                      description="テーマ、データ保存場所、JSONバックアップ、復元、アプリ情報を管理します。"
-                    />
-                  }
-                />
+                <Route path="/settings" element={<BackupPage />} />
               </Routes>
             </div>
           </main>
