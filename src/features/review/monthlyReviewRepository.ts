@@ -242,5 +242,5 @@ export function createMonthlyReviewMarkdown({
     createMarkdownSection("自由メモ", review?.free_memo ?? ""),
   ];
 
-  return `${markdownSections.join("\n\n")}\n`;
+  return `${markdownSections.join("\n\n---\n\n")}\n`;
 }
