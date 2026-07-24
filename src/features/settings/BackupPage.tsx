@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
+  AlertTriangle,
   Clipboard,
   DatabaseBackup,
   Download,
   FileCheck2,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
 } from "lucide-react";
 import { getErrorMessage } from "../../lib/utils/error";
@@ -13,8 +15,10 @@ import {
   BackupValidationResult,
   DatabaseBackupResult,
   DatabaseBackupSummary,
+  RestoreDatabaseBackupResult,
   createDatabaseBackup,
   getCurrentDatabaseBackupSummary,
+  restoreDatabaseBackup,
   validateDatabaseBackupJson,
 } from "./backupRepository";
 
@@ -28,19 +32,39 @@ export function BackupPage() {
     useState<BackupValidationResult | null>(null);
   const [currentSummary, setCurrentSummary] =
     useState<DatabaseBackupSummary | null>(null);
+  const [restoreResult, setRestoreResult] =
+    useState<RestoreDatabaseBackupResult | null>(null);
   const [exportStatus, setExportStatus] = useState<ActionStatus>("idle");
   const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
   const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
   const [validateStatus, setValidateStatus] = useState<ActionStatus>("idle");
+  const [restoreStatus, setRestoreStatus] = useState<ActionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [copyErrorMessage, setCopyErrorMessage] = useState("");
   const [downloadErrorMessage, setDownloadErrorMessage] = useState("");
   const [validateErrorMessage, setValidateErrorMessage] = useState("");
+  const [restoreErrorMessage, setRestoreErrorMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [hasConfirmedCurrentBackup, setHasConfirmedCurrentBackup] =
+    useState(false);
 
   const hasBackupJson = useMemo(() => {
     return Boolean(backupResult?.json);
   }, [backupResult]);
+
+  const canRestore = useMemo(() => {
+    return (
+      validateStatus === "success" &&
+      Boolean(validationResult) &&
+      hasConfirmedCurrentBackup &&
+      restoreStatus !== "running"
+    );
+  }, [
+    hasConfirmedCurrentBackup,
+    restoreStatus,
+    validateStatus,
+    validationResult,
+  ]);
 
   async function handleCreateBackup() {
     setExportStatus("running");
@@ -115,8 +139,12 @@ export function BackupPage() {
 
     setValidationResult(null);
     setCurrentSummary(null);
+    setRestoreResult(null);
+    setHasConfirmedCurrentBackup(false);
     setValidateStatus("idle");
+    setRestoreStatus("idle");
     setValidateErrorMessage("");
+    setRestoreErrorMessage("");
     setSelectedFileName(selectedFile?.name ?? "");
 
     if (!selectedFile) {
@@ -142,6 +170,28 @@ export function BackupPage() {
     }
   }
 
+  async function handleRestoreBackup() {
+    if (!validationResult) {
+      return;
+    }
+
+    setRestoreStatus("running");
+    setRestoreErrorMessage("");
+
+    try {
+      const restoredBackup = await restoreDatabaseBackup(validationResult.data);
+      const loadedCurrentSummary = await getCurrentDatabaseBackupSummary();
+
+      setRestoreResult(restoredBackup);
+      setCurrentSummary(loadedCurrentSummary);
+      setRestoreStatus("success");
+    } catch (error: unknown) {
+      console.error(error);
+      setRestoreErrorMessage(getErrorMessage(error));
+      setRestoreStatus("error");
+    }
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -149,7 +199,7 @@ export function BackupPage() {
           設定・バックアップ
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          現在のナレッジ、問い合わせメモ、分類、タグ、関連リンク、月次振り返りをJSON形式で出力・検証します。
+          現在のナレッジ、問い合わせメモ、分類、タグ、関連リンク、月次振り返りをJSON形式で出力・検証・復元します。
         </p>
       </div>
 
@@ -288,12 +338,11 @@ export function BackupPage() {
               <div className="flex items-center gap-2">
                 <ShieldCheck size={20} className="text-slate-700" />
                 <h2 className="text-lg font-bold text-slate-900">
-                  バックアップJSONの検証・復元プレビュー
+                  バックアップJSONの検証・復元
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 保存済みのJSONファイルを読み込み、このアプリのバックアップとして使える形式か確認します。
-                この操作ではデータベースは変更されません。
               </p>
             </div>
 
@@ -349,7 +398,7 @@ export function BackupPage() {
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   現在のDB件数と、選択したバックアップJSON内の件数を比較します。
-                  次の復元ステップでは、現在のDB内容をバックアップ内容で置き換える前提になります。
+                  復元を実行すると、現在のDB内容はバックアップJSONの内容で置き換えられます。
                 </p>
 
                 {currentSummary ? (
@@ -364,13 +413,65 @@ export function BackupPage() {
                 )}
               </section>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                <p className="font-semibold">次のステップでの注意</p>
-                <p className="mt-2">
-                  復元機能では、現在のDB内容をバックアップJSONの内容で置き換える可能性があります。
-                  そのため、実行前に現在のDBもバックアップしてから復元できるようにします。
-                </p>
-              </div>
+              <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle
+                    size={18}
+                    className="mt-0.5 shrink-0 text-red-700"
+                  />
+                  <div>
+                    <p className="font-semibold">復元前の確認</p>
+                    <p className="mt-2">
+                      復元を実行すると、現在のDB内容は選択したバックアップJSONの内容で置き換えられます。
+                      必ず現在のDBもバックアップしてから実行してください。
+                    </p>
+                  </div>
+                </div>
+
+                <label className="mt-4 flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={hasConfirmedCurrentBackup}
+                    onChange={(event) =>
+                      setHasConfirmedCurrentBackup(event.target.checked)
+                    }
+                    className="mt-1 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span className="font-semibold">
+                    現在のDBバックアップを作成・保存済みです
+                  </span>
+                </label>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => void handleRestoreBackup()}
+                    disabled={!canRestore}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RotateCcw size={16} />
+                    {restoreStatus === "running"
+                      ? "復元中..."
+                      : "バックアップから復元する"}
+                  </button>
+                </div>
+              </section>
+
+              {restoreStatus === "success" && restoreResult && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                  <p className="font-semibold">
+                    バックアップJSONから復元しました。
+                  </p>
+                  <p className="mt-1">復元日時: {restoreResult.restoredAt}</p>
+                </div>
+              )}
+
+              {restoreStatus === "error" && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <p className="font-semibold">復元に失敗しました。</p>
+                  <p className="mt-1 break-all">{restoreErrorMessage}</p>
+                </div>
+              )}
             </div>
           )}
 
