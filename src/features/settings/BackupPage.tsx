@@ -1,7 +1,19 @@
-import { useMemo, useState } from "react";
-import { Clipboard, DatabaseBackup, Download, RefreshCw } from "lucide-react";
+import { ChangeEvent, useMemo, useState } from "react";
+import {
+  Clipboard,
+  DatabaseBackup,
+  Download,
+  FileCheck2,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import { getErrorMessage } from "../../lib/utils/error";
-import { DatabaseBackupResult, createDatabaseBackup } from "./backupRepository";
+import {
+  BackupValidationResult,
+  DatabaseBackupResult,
+  createDatabaseBackup,
+  validateDatabaseBackupJson,
+} from "./backupRepository";
 
 type ActionStatus = "idle" | "running" | "success" | "error";
 
@@ -9,12 +21,17 @@ export function BackupPage() {
   const [backupResult, setBackupResult] = useState<DatabaseBackupResult | null>(
     null,
   );
+  const [validationResult, setValidationResult] =
+    useState<BackupValidationResult | null>(null);
   const [exportStatus, setExportStatus] = useState<ActionStatus>("idle");
   const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
   const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
+  const [validateStatus, setValidateStatus] = useState<ActionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [copyErrorMessage, setCopyErrorMessage] = useState("");
   const [downloadErrorMessage, setDownloadErrorMessage] = useState("");
+  const [validateErrorMessage, setValidateErrorMessage] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
 
   const hasBackupJson = useMemo(() => {
     return Boolean(backupResult?.json);
@@ -86,6 +103,37 @@ export function BackupPage() {
     }
   }
 
+  async function handleValidateBackupFile(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const selectedFile = event.target.files?.[0];
+
+    setValidationResult(null);
+    setValidateStatus("idle");
+    setValidateErrorMessage("");
+    setSelectedFileName(selectedFile?.name ?? "");
+
+    if (!selectedFile) {
+      return;
+    }
+
+    setValidateStatus("running");
+
+    try {
+      const jsonText = await selectedFile.text();
+      const result = validateDatabaseBackupJson(jsonText);
+
+      setValidationResult(result);
+      setValidateStatus("success");
+    } catch (error: unknown) {
+      console.error(error);
+      setValidateErrorMessage(getErrorMessage(error));
+      setValidateStatus("error");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -93,11 +141,19 @@ export function BackupPage() {
           設定・バックアップ
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          現在のナレッジ、問い合わせメモ、分類、タグ、関連リンク、月次振り返りをJSON形式で出力します。
+          現在のナレッジ、問い合わせメモ、分類、タグ、関連リンク、月次振り返りをJSON形式で出力・検証します。
         </p>
       </div>
 
       <div className="space-y-6">
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-800">
+          <p className="font-semibold">バックアップJSONの取り扱い注意</p>
+          <p className="mt-2">
+            バックアップJSONには登録済みのナレッジ、問い合わせメモ、月次振り返りの本文が含まれます。
+            社外秘情報や個人情報を含めないよう注意してください。
+          </p>
+        </section>
+
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -108,7 +164,7 @@ export function BackupPage() {
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                復元機能を追加する前段階として、まずはデータを外部ファイルとして保管できるようにします。
+                現在のデータを外部ファイルとして保管できるようにします。
               </p>
             </div>
 
@@ -140,31 +196,16 @@ export function BackupPage() {
           )}
 
           {backupResult && (
-            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-              <CountCard
-                label="ナレッジ"
-                value={backupResult.summary.counts.knowledgeItems}
-              />
-              <CountCard
-                label="問い合わせメモ"
-                value={backupResult.summary.counts.inquiryNotes}
-              />
-              <CountCard
-                label="分類"
-                value={
-                  backupResult.summary.counts.knowledgeCategories +
-                  backupResult.summary.counts.inquiryCategories
-                }
-              />
-              <CountCard
-                label="タグ"
-                value={backupResult.summary.counts.tags}
-              />
-              <CountCard
-                label="月次振り返り"
-                value={backupResult.summary.counts.monthlyReviews}
-              />
-            </div>
+            <BackupCountGrid
+              knowledgeItems={backupResult.summary.counts.knowledgeItems}
+              inquiryNotes={backupResult.summary.counts.inquiryNotes}
+              categories={
+                backupResult.summary.counts.knowledgeCategories +
+                backupResult.summary.counts.inquiryCategories
+              }
+              tags={backupResult.summary.counts.tags}
+              monthlyReviews={backupResult.summary.counts.monthlyReviews}
+            />
           )}
         </section>
 
@@ -175,7 +216,7 @@ export function BackupPage() {
                 バックアップJSON
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                作成したJSONはコピーまたはファイル保存できます。復元機能は次のステップで追加します。
+                作成したJSONはコピーまたはファイル保存できます。
               </p>
             </div>
 
@@ -232,7 +273,115 @@ export function BackupPage() {
             {backupResult?.json || "まだバックアップJSONは作成されていません。"}
           </pre>
         </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={20} className="text-slate-700" />
+                <h2 className="text-lg font-bold text-slate-900">
+                  バックアップJSONの検証
+                </h2>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                保存済みのJSONファイルを読み込み、このアプリのバックアップとして使える形式か確認します。
+                この操作ではデータベースは変更されません。
+              </p>
+            </div>
+
+            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+              <FileCheck2 size={16} />
+              JSONを選択
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => void handleValidateBackupFile(event)}
+                className="hidden"
+              />
+            </label>
+          </div>
+
+          {selectedFileName && (
+            <p className="mt-4 text-sm text-slate-500">
+              選択ファイル: {selectedFileName}
+            </p>
+          )}
+
+          {validateStatus === "running" && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              バックアップJSONを検証しています...
+            </div>
+          )}
+
+          {validateStatus === "success" && validationResult && (
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                <p className="font-semibold">
+                  バックアップJSONは有効な形式です。
+                </p>
+                <p className="mt-1">
+                  作成日時: {validationResult.summary.exportedAt}
+                </p>
+              </div>
+
+              {validationResult.warnings.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  <p className="font-semibold">注意</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {validationResult.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <BackupCountGrid
+                knowledgeItems={validationResult.summary.counts.knowledgeItems}
+                inquiryNotes={validationResult.summary.counts.inquiryNotes}
+                categories={
+                  validationResult.summary.counts.knowledgeCategories +
+                  validationResult.summary.counts.inquiryCategories
+                }
+                tags={validationResult.summary.counts.tags}
+                monthlyReviews={validationResult.summary.counts.monthlyReviews}
+              />
+            </div>
+          )}
+
+          {validateStatus === "error" && (
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-semibold">
+                バックアップJSONの検証に失敗しました。
+              </p>
+              <p className="mt-1 break-all">{validateErrorMessage}</p>
+            </div>
+          )}
+        </section>
       </div>
+    </div>
+  );
+}
+
+function BackupCountGrid({
+  knowledgeItems,
+  inquiryNotes,
+  categories,
+  tags,
+  monthlyReviews,
+}: {
+  knowledgeItems: number;
+  inquiryNotes: number;
+  categories: number;
+  tags: number;
+  monthlyReviews: number;
+}) {
+  return (
+    <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+      <CountCard label="ナレッジ" value={knowledgeItems} />
+      <CountCard label="問い合わせメモ" value={inquiryNotes} />
+      <CountCard label="分類" value={categories} />
+      <CountCard label="タグ" value={tags} />
+      <CountCard label="月次振り返り" value={monthlyReviews} />
     </div>
   );
 }
