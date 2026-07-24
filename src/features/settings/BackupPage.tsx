@@ -1,4 +1,5 @@
-import { ChangeEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import {
   Clipboard,
   DatabaseBackup,
@@ -11,7 +12,9 @@ import { getErrorMessage } from "../../lib/utils/error";
 import {
   BackupValidationResult,
   DatabaseBackupResult,
+  DatabaseBackupSummary,
   createDatabaseBackup,
+  getCurrentDatabaseBackupSummary,
   validateDatabaseBackupJson,
 } from "./backupRepository";
 
@@ -23,6 +26,8 @@ export function BackupPage() {
   );
   const [validationResult, setValidationResult] =
     useState<BackupValidationResult | null>(null);
+  const [currentSummary, setCurrentSummary] =
+    useState<DatabaseBackupSummary | null>(null);
   const [exportStatus, setExportStatus] = useState<ActionStatus>("idle");
   const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
   const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
@@ -109,6 +114,7 @@ export function BackupPage() {
     const selectedFile = event.target.files?.[0];
 
     setValidationResult(null);
+    setCurrentSummary(null);
     setValidateStatus("idle");
     setValidateErrorMessage("");
     setSelectedFileName(selectedFile?.name ?? "");
@@ -121,9 +127,11 @@ export function BackupPage() {
 
     try {
       const jsonText = await selectedFile.text();
-      const result = validateDatabaseBackupJson(jsonText);
+      const validatedBackup = validateDatabaseBackupJson(jsonText);
+      const loadedCurrentSummary = await getCurrentDatabaseBackupSummary();
 
-      setValidationResult(result);
+      setValidationResult(validatedBackup);
+      setCurrentSummary(loadedCurrentSummary);
       setValidateStatus("success");
     } catch (error: unknown) {
       console.error(error);
@@ -280,7 +288,7 @@ export function BackupPage() {
               <div className="flex items-center gap-2">
                 <ShieldCheck size={20} className="text-slate-700" />
                 <h2 className="text-lg font-bold text-slate-900">
-                  バックアップJSONの検証
+                  バックアップJSONの検証・復元プレビュー
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -335,16 +343,34 @@ export function BackupPage() {
                 </div>
               )}
 
-              <BackupCountGrid
-                knowledgeItems={validationResult.summary.counts.knowledgeItems}
-                inquiryNotes={validationResult.summary.counts.inquiryNotes}
-                categories={
-                  validationResult.summary.counts.knowledgeCategories +
-                  validationResult.summary.counts.inquiryCategories
-                }
-                tags={validationResult.summary.counts.tags}
-                monthlyReviews={validationResult.summary.counts.monthlyReviews}
-              />
+              <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="text-base font-bold text-slate-900">
+                  復元プレビュー
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  現在のDB件数と、選択したバックアップJSON内の件数を比較します。
+                  次の復元ステップでは、現在のDB内容をバックアップ内容で置き換える前提になります。
+                </p>
+
+                {currentSummary ? (
+                  <BackupComparisonGrid
+                    currentSummary={currentSummary}
+                    backupSummary={validationResult.summary}
+                  />
+                ) : (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                    現在のDB件数を確認できませんでした。
+                  </div>
+                )}
+              </section>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                <p className="font-semibold">次のステップでの注意</p>
+                <p className="mt-2">
+                  復元機能では、現在のDB内容をバックアップJSONの内容で置き換える可能性があります。
+                  そのため、実行前に現在のDBもバックアップしてから復元できるようにします。
+                </p>
+              </div>
             </div>
           )}
 
@@ -383,6 +409,99 @@ function BackupCountGrid({
       <CountCard label="タグ" value={tags} />
       <CountCard label="月次振り返り" value={monthlyReviews} />
     </div>
+  );
+}
+
+function BackupComparisonGrid({
+  currentSummary,
+  backupSummary,
+}: {
+  currentSummary: DatabaseBackupSummary;
+  backupSummary: DatabaseBackupSummary;
+}) {
+  return (
+    <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <table className="w-full border-collapse text-sm">
+        <thead className="bg-slate-100 text-left text-xs font-semibold text-slate-500">
+          <tr>
+            <th className="px-4 py-3">対象</th>
+            <th className="px-4 py-3 text-right">現在のDB</th>
+            <th className="px-4 py-3 text-right">バックアップ</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          <ComparisonRow
+            label="ナレッジ"
+            currentValue={currentSummary.counts.knowledgeItems}
+            backupValue={backupSummary.counts.knowledgeItems}
+          />
+          <ComparisonRow
+            label="問い合わせメモ"
+            currentValue={currentSummary.counts.inquiryNotes}
+            backupValue={backupSummary.counts.inquiryNotes}
+          />
+          <ComparisonRow
+            label="分類"
+            currentValue={
+              currentSummary.counts.knowledgeCategories +
+              currentSummary.counts.inquiryCategories
+            }
+            backupValue={
+              backupSummary.counts.knowledgeCategories +
+              backupSummary.counts.inquiryCategories
+            }
+          />
+          <ComparisonRow
+            label="タグ"
+            currentValue={currentSummary.counts.tags}
+            backupValue={backupSummary.counts.tags}
+          />
+          <ComparisonRow
+            label="関連リンク"
+            currentValue={currentSummary.counts.inquiryKnowledgeLinks}
+            backupValue={backupSummary.counts.inquiryKnowledgeLinks}
+          />
+          <ComparisonRow
+            label="月次振り返り"
+            currentValue={currentSummary.counts.monthlyReviews}
+            backupValue={backupSummary.counts.monthlyReviews}
+          />
+          <ComparisonRow
+            label="アプリ設定"
+            currentValue={currentSummary.counts.appSettings}
+            backupValue={backupSummary.counts.appSettings}
+          />
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ComparisonRow({
+  label,
+  currentValue,
+  backupValue,
+}: {
+  label: string;
+  currentValue: number;
+  backupValue: number;
+}) {
+  const hasDifference = currentValue !== backupValue;
+
+  return (
+    <tr>
+      <td className="px-4 py-3 font-semibold text-slate-700">{label}</td>
+      <td className="px-4 py-3 text-right text-slate-600">{currentValue}</td>
+      <td
+        className={
+          hasDifference
+            ? "px-4 py-3 text-right font-semibold text-amber-700"
+            : "px-4 py-3 text-right text-slate-600"
+        }
+      >
+        {backupValue}
+      </td>
+    </tr>
   );
 }
 

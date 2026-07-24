@@ -144,6 +144,12 @@ export async function createDatabaseBackup(): Promise<DatabaseBackupResult> {
   };
 }
 
+export async function getCurrentDatabaseBackupSummary(): Promise<DatabaseBackupSummary> {
+  const currentBackup = await createDatabaseBackup();
+
+  return currentBackup.summary;
+}
+
 export function validateDatabaseBackupJson(
   jsonText: string,
 ): BackupValidationResult {
