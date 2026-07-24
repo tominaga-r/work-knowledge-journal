@@ -24,6 +24,20 @@ import {
 
 type ActionStatus = "idle" | "running" | "success" | "error";
 
+function downloadJsonFile(json: string, fileName: string): void {
+  const blob = new Blob([json], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+
+  URL.revokeObjectURL(url);
+}
+
 export function BackupPage() {
   const [backupResult, setBackupResult] = useState<DatabaseBackupResult | null>(
     null,
@@ -77,8 +91,11 @@ export function BackupPage() {
     try {
       const createdBackup = await createDatabaseBackup();
 
+      downloadJsonFile(createdBackup.json, createdBackup.fileName);
+
       setBackupResult(createdBackup);
       setExportStatus("success");
+      setDownloadStatus("success");
     } catch (error: unknown) {
       console.error(error);
       setErrorMessage(getErrorMessage(error));
@@ -113,17 +130,7 @@ export function BackupPage() {
     setDownloadErrorMessage("");
 
     try {
-      const blob = new Blob([backupResult.json], {
-        type: "application/json;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-
-      anchor.href = url;
-      anchor.download = backupResult.fileName;
-      anchor.click();
-
-      URL.revokeObjectURL(url);
+      downloadJsonFile(backupResult.json, backupResult.fileName);
       setDownloadStatus("success");
     } catch (error: unknown) {
       console.error(error);
@@ -222,7 +229,7 @@ export function BackupPage() {
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                現在のデータを外部ファイルとして保管できるようにします。
+                現在のデータをJSONファイルとして保存します。ボタンを押すと、バックアップJSONを作成してそのままファイル保存します。
               </p>
             </div>
 
@@ -233,13 +240,17 @@ export function BackupPage() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw size={16} />
-              {exportStatus === "running" ? "作成中..." : "バックアップを作成"}
+              {exportStatus === "running"
+                ? "作成・保存中..."
+                : "バックアップを作成して保存"}
             </button>
           </div>
 
           {exportStatus === "success" && backupResult && (
             <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-              <p className="font-semibold">バックアップJSONを作成しました。</p>
+              <p className="font-semibold">
+                バックアップJSONを作成し、ファイル保存しました。
+              </p>
               <p className="mt-1 break-all">
                 ファイル名: {backupResult.fileName}
               </p>
@@ -248,7 +259,9 @@ export function BackupPage() {
 
           {exportStatus === "error" && (
             <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <p className="font-semibold">バックアップ作成に失敗しました。</p>
+              <p className="font-semibold">
+                バックアップ作成またはファイル保存に失敗しました。
+              </p>
               <p className="mt-1 break-all">{errorMessage}</p>
             </div>
           )}
@@ -271,10 +284,10 @@ export function BackupPage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                バックアップJSON
+                バックアップJSONの内容
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                作成したJSONはコピーまたはファイル保存できます。
+                作成したJSONの内容を確認できます。必要に応じてコピーや再保存もできます。
               </p>
             </div>
 
@@ -296,7 +309,9 @@ export function BackupPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Download size={16} />
-                {downloadStatus === "running" ? "保存中..." : "ファイル保存"}
+                {downloadStatus === "running"
+                  ? "保存中..."
+                  : "ファイルを再保存"}
               </button>
             </div>
           </div>
@@ -314,7 +329,7 @@ export function BackupPage() {
             </div>
           )}
 
-          {downloadStatus === "success" && (
+          {downloadStatus === "success" && exportStatus !== "success" && (
             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
               バックアップJSONをファイルとして保存しました。
             </div>
