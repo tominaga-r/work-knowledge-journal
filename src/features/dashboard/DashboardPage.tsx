@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   BookOpen,
   CalendarCheck,
@@ -165,7 +166,7 @@ export function DashboardPage() {
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">ショートカット</h2>
+            <h2 className="text-lg font-bold text-slate-900">クイック操作</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               よく使う画面へすぐ移動できます。
             </p>
@@ -224,7 +225,7 @@ function StatsCard({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: number;
 }) {
@@ -301,7 +302,10 @@ function RecentKnowledgeSection({ items }: { items: RecentKnowledgeItem[] }) {
               to={`/knowledge/${item.id}`}
               className="block rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100"
             >
-              <p className="font-semibold text-slate-900">{item.title}</p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-slate-900">{item.title}</p>
+                {item.is_favorite === 1 && <FavoriteBadge />}
+              </div>
               <p className="mt-1 text-xs text-slate-500">
                 作成日時: {formatDateTime(item.created_at)}
               </p>
@@ -343,7 +347,10 @@ function RecentInquirySection({ items }: { items: RecentInquiryNote[] }) {
               to={`/inquiries/${item.id}`}
               className="block rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100"
             >
-              <p className="font-semibold text-slate-900">{item.title}</p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-slate-900">{item.title}</p>
+                {item.is_favorite === 1 && <FavoriteBadge />}
+              </div>
               <p className="mt-1 text-xs text-slate-500">
                 発生日: {item.occurred_on}
               </p>
@@ -357,13 +364,21 @@ function RecentInquirySection({ items }: { items: RecentInquiryNote[] }) {
   );
 }
 
+function FavoriteBadge() {
+  return (
+    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
+      ★
+    </span>
+  );
+}
+
 function ShortcutLink({
   to,
   icon,
   label,
 }: {
   to: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
 }) {
   return (

@@ -5,6 +5,7 @@ export type RecentKnowledgeItem = {
   id: string;
   title: string;
   type: string;
+  is_favorite: number;
   created_at: string;
 };
 
@@ -12,6 +13,7 @@ export type RecentInquiryNote = {
   id: string;
   title: string;
   occurred_on: string;
+  is_favorite: number;
   created_at: string;
 };
 
@@ -102,6 +104,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
         id,
         title,
         type,
+        is_favorite,
         created_at
        FROM knowledge_items
        ORDER BY created_at DESC
@@ -112,6 +115,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
         id,
         title,
         occurred_on,
+        is_favorite,
         created_at
        FROM inquiry_notes
        ORDER BY created_at DESC
