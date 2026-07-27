@@ -6,6 +6,7 @@ import {
   DatabaseBackup,
   Download,
   FileCheck2,
+  LockKeyhole,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -21,6 +22,10 @@ import {
   restoreDatabaseBackup,
   validateDatabaseBackupJson,
 } from "./backupRepository";
+import {
+  createEncryptedBackupFileName,
+  encryptBackupJson,
+} from "./backupCrypto";
 
 type ActionStatus = "idle" | "running" | "success" | "error";
 
@@ -51,20 +56,34 @@ export function BackupPage() {
   const [exportStatus, setExportStatus] = useState<ActionStatus>("idle");
   const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
   const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
+  const [encryptStatus, setEncryptStatus] = useState<ActionStatus>("idle");
   const [validateStatus, setValidateStatus] = useState<ActionStatus>("idle");
   const [restoreStatus, setRestoreStatus] = useState<ActionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [copyErrorMessage, setCopyErrorMessage] = useState("");
   const [downloadErrorMessage, setDownloadErrorMessage] = useState("");
+  const [encryptErrorMessage, setEncryptErrorMessage] = useState("");
   const [validateErrorMessage, setValidateErrorMessage] = useState("");
   const [restoreErrorMessage, setRestoreErrorMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [encryptedFileName, setEncryptedFileName] = useState("");
+  const [encryptionPassword, setEncryptionPassword] = useState("");
+  const [encryptionPasswordConfirm, setEncryptionPasswordConfirm] =
+    useState("");
   const [hasConfirmedCurrentBackup, setHasConfirmedCurrentBackup] =
     useState(false);
 
   const hasBackupJson = useMemo(() => {
     return Boolean(backupResult?.json);
   }, [backupResult]);
+
+  const canCreateEncryptedBackup = useMemo(() => {
+    return (
+      encryptionPassword.trim().length >= 8 &&
+      encryptionPassword.trim() === encryptionPasswordConfirm.trim() &&
+      encryptStatus !== "running"
+    );
+  }, [encryptStatus, encryptionPassword, encryptionPasswordConfirm]);
 
   const canRestore = useMemo(() => {
     return (
@@ -100,6 +119,48 @@ export function BackupPage() {
       console.error(error);
       setErrorMessage(getErrorMessage(error));
       setExportStatus("error");
+    }
+  }
+
+  async function handleCreateEncryptedBackup() {
+    setEncryptStatus("running");
+    setEncryptedFileName("");
+    setEncryptErrorMessage("");
+
+    try {
+      const normalizedPassword = encryptionPassword.trim();
+      const normalizedConfirmPassword = encryptionPasswordConfirm.trim();
+
+      if (!normalizedPassword) {
+        throw new Error("暗号化パスワードを入力してください。");
+      }
+
+      if (normalizedPassword.length < 8) {
+        throw new Error("暗号化パスワードは8文字以上で入力してください。");
+      }
+
+      if (normalizedPassword !== normalizedConfirmPassword) {
+        throw new Error("確認用パスワードが一致していません。");
+      }
+
+      const createdBackup = await createDatabaseBackup();
+      const encryptedBackup = await encryptBackupJson(
+        createdBackup.json,
+        normalizedPassword,
+      );
+      const encryptedJson = JSON.stringify(encryptedBackup, null, 2);
+      const fileName = createEncryptedBackupFileName(createdBackup.fileName);
+
+      downloadJsonFile(encryptedJson, fileName);
+
+      setEncryptedFileName(fileName);
+      setEncryptStatus("success");
+      setEncryptionPassword("");
+      setEncryptionPasswordConfirm("");
+    } catch (error: unknown) {
+      console.error(error);
+      setEncryptErrorMessage(getErrorMessage(error));
+      setEncryptStatus("error");
     }
   }
 
@@ -281,13 +342,115 @@ export function BackupPage() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <LockKeyhole size={20} className="text-slate-700" />
+            <h2 className="text-lg font-bold text-slate-900">
+              暗号化バックアップ
+            </h2>
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            パスワードを設定して、バックアップJSONを暗号化したファイルとして保存します。
+            持ち出しや共有時のリスクを下げたい場合に使用します。
+          </p>
+
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+            <p className="font-semibold">暗号化バックアップの注意</p>
+            <p className="mt-2">
+              パスワードを忘れると、暗号化バックアップは復号できません。
+              また、この機能はバックアップファイルを暗号化するものであり、端末内のSQLiteデータベース自体を暗号化するものではありません。
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="backup-encryption-password"
+                className="text-sm font-semibold text-slate-700"
+              >
+                暗号化パスワード
+              </label>
+              <input
+                id="backup-encryption-password"
+                type="password"
+                value={encryptionPassword}
+                onChange={(event) => {
+                  setEncryptionPassword(event.target.value);
+                  setEncryptStatus("idle");
+                  setEncryptErrorMessage("");
+                }}
+                placeholder="8文字以上"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="backup-encryption-password-confirm"
+                className="text-sm font-semibold text-slate-700"
+              >
+                確認用パスワード
+              </label>
+              <input
+                id="backup-encryption-password-confirm"
+                type="password"
+                value={encryptionPasswordConfirm}
+                onChange={(event) => {
+                  setEncryptionPasswordConfirm(event.target.value);
+                  setEncryptStatus("idle");
+                  setEncryptErrorMessage("");
+                }}
+                placeholder="同じパスワードを入力"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-xs leading-5 text-slate-500">
+              暗号化方式: AES-GCM / 鍵導出: PBKDF2 SHA-256
+            </p>
+
+            <button
+              type="button"
+              onClick={() => void handleCreateEncryptedBackup()}
+              disabled={!canCreateEncryptedBackup}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LockKeyhole size={16} />
+              {encryptStatus === "running"
+                ? "暗号化・保存中..."
+                : "暗号化して保存"}
+            </button>
+          </div>
+
+          {encryptStatus === "success" && (
+            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+              <p className="font-semibold">
+                暗号化バックアップを作成し、ファイル保存しました。
+              </p>
+              <p className="mt-1 break-all">ファイル名: {encryptedFileName}</p>
+            </div>
+          )}
+
+          {encryptStatus === "error" && (
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-semibold">
+                暗号化バックアップの作成に失敗しました。
+              </p>
+              <p className="mt-1 break-all">{encryptErrorMessage}</p>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-900">
                 バックアップJSONの内容
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                作成したJSONの内容を確認できます。必要に応じてコピーや再保存もできます。
+                作成した通常バックアップJSONの内容を確認できます。必要に応じてコピーや再保存もできます。
               </p>
             </div>
 
@@ -343,7 +506,8 @@ export function BackupPage() {
           )}
 
           <pre className="mt-5 max-h-130 overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-950 p-5 text-sm leading-6 text-slate-100">
-            {backupResult?.json || "まだバックアップJSONは作成されていません。"}
+            {backupResult?.json ||
+              "まだ通常バックアップJSONは作成されていません。"}
           </pre>
         </section>
 
@@ -357,13 +521,13 @@ export function BackupPage() {
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                保存済みのJSONファイルを読み込み、このアプリのバックアップとして使える形式か確認します。
+                保存済みの通常JSONファイルを読み込み、このアプリのバックアップとして使える形式か確認します。
               </p>
             </div>
 
             <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               <FileCheck2 size={16} />
-              JSONを選択
+              通常JSONを選択
               <input
                 type="file"
                 accept="application/json,.json"
