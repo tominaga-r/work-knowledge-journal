@@ -1,5 +1,4 @@
 // src/App.tsx
-import { useEffect, useState } from "react";
 import {
   BookOpen,
   CalendarCheck,
@@ -16,19 +15,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import clsx from "clsx";
-import {
-  countFavoriteInquiryNotes,
-  countInquiryNotesByMonth,
-} from "./features/inquiry/inquiryRepository";
-import {
-  countFavoriteKnowledgeItems,
-  countKnowledgeItemsByMonth,
-} from "./features/knowledge/knowledgeRepository";
-import { countTags } from "./features/taxonomy/tagRepository";
-import { migrateDatabase } from "./lib/db/migrate";
-import { initializeSampleData } from "./lib/db/sampleData";
-import { currentMonthString } from "./lib/utils/date";
-import { getErrorMessage } from "./lib/utils/error";
+import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
 import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
 import { KnowledgeDetailPage } from "./features/knowledge/KnowledgeDetailPage";
@@ -49,13 +36,6 @@ const navItems = [
   { to: "/taxonomy", label: "分類管理", icon: Tags },
   { to: "/settings", label: "設定", icon: Settings },
 ];
-
-type DashboardStats = {
-  monthlyKnowledgeCount: number;
-  monthlyInquiryCount: number;
-  tagCount: number;
-  favoriteCount: number;
-};
 
 function Sidebar() {
   const location = useLocation();
@@ -93,150 +73,6 @@ function Sidebar() {
         })}
       </nav>
     </aside>
-  );
-}
-
-function PageHeader({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mb-6">
-      <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-    </div>
-  );
-}
-
-function DashboardPage() {
-  const [dbStatus, setDbStatus] = useState<"checking" | "ready" | "error">(
-    "checking",
-  );
-  const [dbError, setDbError] = useState<string>("");
-  const [sampleDataCreated, setSampleDataCreated] = useState<boolean>(false);
-  const [stats, setStats] = useState<DashboardStats>({
-    monthlyKnowledgeCount: 0,
-    monthlyInquiryCount: 0,
-    tagCount: 0,
-    favoriteCount: 0,
-  });
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function initializeAppDatabase() {
-      await migrateDatabase();
-
-      const created = await initializeSampleData();
-      const targetMonth = currentMonthString();
-
-      const [
-        monthlyKnowledgeCount,
-        monthlyInquiryCount,
-        tagCount,
-        favoriteKnowledgeCount,
-        favoriteInquiryCount,
-      ] = await Promise.all([
-        countKnowledgeItemsByMonth(targetMonth),
-        countInquiryNotesByMonth(targetMonth),
-        countTags(),
-        countFavoriteKnowledgeItems(),
-        countFavoriteInquiryNotes(),
-      ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      setSampleDataCreated(created);
-      setStats({
-        monthlyKnowledgeCount,
-        monthlyInquiryCount,
-        tagCount,
-        favoriteCount: favoriteKnowledgeCount + favoriteInquiryCount,
-      });
-      setDbStatus("ready");
-    }
-
-    initializeAppDatabase().catch((error: unknown) => {
-      console.error(error);
-
-      if (isMounted) {
-        setDbStatus("error");
-        setDbError(getErrorMessage(error));
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  return (
-    <div>
-      <PageHeader
-        title="ダッシュボード"
-        description="最近追加したナレッジ、問い合わせメモ、月次振り返りへの導線を表示します。"
-      />
-
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-slate-900">データベース状態</p>
-        {dbStatus === "checking" && (
-          <p className="mt-2 text-sm text-slate-500">
-            SQLiteデータベースを初期化しています...
-          </p>
-        )}
-        {dbStatus === "ready" && (
-          <div className="mt-2 space-y-1 text-sm text-emerald-700">
-            <p>SQLiteデータベースの初期化が完了しました。</p>
-            {sampleDataCreated && (
-              <p>初回確認用のサンプルデータを投入しました。</p>
-            )}
-          </div>
-        )}
-        {dbStatus === "error" && (
-          <div className="mt-2 text-sm text-red-700">
-            <p>SQLiteデータベースの初期化に失敗しました。</p>
-            <p className="mt-1 break-all">{dbError}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">今月のナレッジ</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
-            {stats.monthlyKnowledgeCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">今月の問い合わせメモ</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
-            {stats.monthlyInquiryCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">登録共通タグ</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
-            {stats.tagCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">お気に入り</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
-            {stats.favoriteCount}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
-        このアプリには、顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報を保存しないでください。
-        MVPではSQLiteを平文保存とし、保存対象を匿名化された業務メモに限定します。
-      </div>
-    </div>
   );
 }
 
