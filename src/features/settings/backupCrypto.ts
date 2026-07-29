@@ -18,6 +18,25 @@ export type EncryptedBackupData = {
   ciphertext: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function createRandomBytes(length: number): Uint8Array<ArrayBuffer> {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+
+  return bytes;
+}
+
+function toArrayBufferBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  const copiedBytes = new Uint8Array(bytes.length);
+
+  copiedBytes.set(bytes);
+
+  return copiedBytes;
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunkSize = 0x8000;
@@ -30,11 +49,31 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function base64ToBytes(
+  base64: string,
+  fieldName: string,
+): Uint8Array<ArrayBuffer> {
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes;
+  } catch {
+    throw new Error(`${fieldName} のBase64形式が正しくありません。`);
+  }
+}
+
 async function deriveEncryptionKey(
   password: string,
   salt: Uint8Array,
+  usages: KeyUsage[],
 ): Promise<CryptoKey> {
   const passwordBytes = new TextEncoder().encode(password);
+  const normalizedSalt = toArrayBufferBytes(salt);
 
   const baseKey = await crypto.subtle.importKey(
     "raw",
@@ -47,7 +86,7 @@ async function deriveEncryptionKey(
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt,
+      salt: normalizedSalt,
       iterations: PBKDF2_ITERATIONS,
       hash: "SHA-256",
     },
@@ -57,14 +96,11 @@ async function deriveEncryptionKey(
       length: 256,
     },
     false,
-    ["encrypt"],
+    usages,
   );
 }
 
-export async function encryptBackupJson(
-  backupJson: string,
-  password: string,
-): Promise<EncryptedBackupData> {
+function normalizePassword(password: string): string {
   const normalizedPassword = password.trim();
 
   if (!normalizedPassword) {
@@ -75,19 +111,32 @@ export async function encryptBackupJson(
     throw new Error("暗号化パスワードは8文字以上で入力してください。");
   }
 
+  return normalizedPassword;
+}
+
+function assertCryptoAvailable(): void {
   if (!crypto.subtle) {
     throw new Error("この環境では暗号化機能を利用できません。");
   }
+}
 
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveEncryptionKey(normalizedPassword, salt);
+export async function encryptBackupJson(
+  backupJson: string,
+  password: string,
+): Promise<EncryptedBackupData> {
+  assertCryptoAvailable();
+
+  const normalizedPassword = normalizePassword(password);
+  const salt = createRandomBytes(16);
+  const iv = createRandomBytes(12);
+  const key = await deriveEncryptionKey(normalizedPassword, salt, ["encrypt"]);
   const plaintextBytes = new TextEncoder().encode(backupJson);
+  const normalizedIv = toArrayBufferBytes(iv);
 
   const encryptedBuffer = await crypto.subtle.encrypt(
     {
       name: "AES-GCM",
-      iv,
+      iv: normalizedIv,
     },
     key,
     plaintextBytes,
@@ -106,6 +155,105 @@ export async function encryptBackupJson(
     iv: bytesToBase64(iv),
     ciphertext: bytesToBase64(new Uint8Array(encryptedBuffer)),
   };
+}
+
+export function parseEncryptedBackupJson(
+  jsonText: string,
+): EncryptedBackupData {
+  let parsedValue: unknown;
+
+  try {
+    parsedValue = JSON.parse(jsonText);
+  } catch {
+    throw new Error(
+      "暗号化バックアップJSONとして読み込めませんでした。ファイル内容を確認してください。",
+    );
+  }
+
+  if (!isRecord(parsedValue)) {
+    throw new Error("暗号化バックアップJSONの形式が正しくありません。");
+  }
+
+  if (parsedValue.fileType !== ENCRYPTED_BACKUP_FILE_TYPE) {
+    throw new Error("このアプリの暗号化バックアップJSONではありません。");
+  }
+
+  if (parsedValue.version !== ENCRYPTED_BACKUP_VERSION) {
+    throw new Error(
+      "対応していない暗号化バックアップ形式です。version 1 のJSONを選択してください。",
+    );
+  }
+
+  if (parsedValue.appName !== "Work Knowledge Journal") {
+    throw new Error("このアプリの暗号化バックアップJSONではありません。");
+  }
+
+  if (parsedValue.algorithm !== "AES-GCM") {
+    throw new Error("対応していない暗号化方式です。");
+  }
+
+  if (parsedValue.kdf !== "PBKDF2") {
+    throw new Error("対応していない鍵導出方式です。");
+  }
+
+  if (parsedValue.hash !== "SHA-256") {
+    throw new Error("対応していないハッシュ方式です。");
+  }
+
+  if (parsedValue.iterations !== PBKDF2_ITERATIONS) {
+    throw new Error("対応していない暗号化バックアップ設定です。");
+  }
+
+  if (typeof parsedValue.encryptedAt !== "string" || !parsedValue.encryptedAt) {
+    throw new Error("暗号化日時 encryptedAt が正しくありません。");
+  }
+
+  if (typeof parsedValue.salt !== "string" || !parsedValue.salt) {
+    throw new Error("salt が正しくありません。");
+  }
+
+  if (typeof parsedValue.iv !== "string" || !parsedValue.iv) {
+    throw new Error("iv が正しくありません。");
+  }
+
+  if (typeof parsedValue.ciphertext !== "string" || !parsedValue.ciphertext) {
+    throw new Error("ciphertext が正しくありません。");
+  }
+
+  return parsedValue as EncryptedBackupData;
+}
+
+export async function decryptBackupJson(
+  encryptedBackupJson: string,
+  password: string,
+): Promise<string> {
+  assertCryptoAvailable();
+
+  const normalizedPassword = normalizePassword(password);
+  const encryptedBackup = parseEncryptedBackupJson(encryptedBackupJson);
+  const salt = base64ToBytes(encryptedBackup.salt, "salt");
+  const iv = base64ToBytes(encryptedBackup.iv, "iv");
+  const ciphertext = base64ToBytes(encryptedBackup.ciphertext, "ciphertext");
+  const key = await deriveEncryptionKey(normalizedPassword, salt, ["decrypt"]);
+  const normalizedIv = toArrayBufferBytes(iv);
+  const normalizedCiphertext = toArrayBufferBytes(ciphertext);
+
+  try {
+    const decryptedBuffer = await crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: normalizedIv,
+      },
+      key,
+      normalizedCiphertext,
+    );
+
+    return new TextDecoder().decode(decryptedBuffer);
+  } catch {
+    throw new Error(
+      "暗号化バックアップの復号に失敗しました。パスワードまたはファイル内容を確認してください。",
+    );
+  }
 }
 
 export function createEncryptedBackupFileName(plainBackupFileName: string) {

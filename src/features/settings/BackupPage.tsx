@@ -24,6 +24,7 @@ import {
 } from "./backupRepository";
 import {
   createEncryptedBackupFileName,
+  decryptBackupJson,
   encryptBackupJson,
 } from "./backupCrypto";
 
@@ -57,19 +58,26 @@ export function BackupPage() {
   const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
   const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
   const [encryptStatus, setEncryptStatus] = useState<ActionStatus>("idle");
+  const [encryptedValidateStatus, setEncryptedValidateStatus] =
+    useState<ActionStatus>("idle");
   const [validateStatus, setValidateStatus] = useState<ActionStatus>("idle");
   const [restoreStatus, setRestoreStatus] = useState<ActionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [copyErrorMessage, setCopyErrorMessage] = useState("");
   const [downloadErrorMessage, setDownloadErrorMessage] = useState("");
   const [encryptErrorMessage, setEncryptErrorMessage] = useState("");
+  const [encryptedValidateErrorMessage, setEncryptedValidateErrorMessage] =
+    useState("");
   const [validateErrorMessage, setValidateErrorMessage] = useState("");
   const [restoreErrorMessage, setRestoreErrorMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [encryptedSelectedFileName, setEncryptedSelectedFileName] =
+    useState("");
   const [encryptedFileName, setEncryptedFileName] = useState("");
   const [encryptionPassword, setEncryptionPassword] = useState("");
   const [encryptionPasswordConfirm, setEncryptionPasswordConfirm] =
     useState("");
+  const [decryptPassword, setDecryptPassword] = useState("");
   const [hasConfirmedCurrentBackup, setHasConfirmedCurrentBackup] =
     useState(false);
 
@@ -85,6 +93,13 @@ export function BackupPage() {
     );
   }, [encryptStatus, encryptionPassword, encryptionPasswordConfirm]);
 
+  const canSelectEncryptedBackup = useMemo(() => {
+    return (
+      decryptPassword.trim().length >= 8 &&
+      encryptedValidateStatus !== "running"
+    );
+  }, [decryptPassword, encryptedValidateStatus]);
+
   const canRestore = useMemo(() => {
     return (
       validateStatus === "success" &&
@@ -98,6 +113,17 @@ export function BackupPage() {
     validateStatus,
     validationResult,
   ]);
+
+  function resetRestorePreview() {
+    setValidationResult(null);
+    setCurrentSummary(null);
+    setRestoreResult(null);
+    setHasConfirmedCurrentBackup(false);
+    setValidateStatus("idle");
+    setRestoreStatus("idle");
+    setValidateErrorMessage("");
+    setRestoreErrorMessage("");
+  }
 
   async function handleCreateBackup() {
     setExportStatus("running");
@@ -200,20 +226,25 @@ export function BackupPage() {
     }
   }
 
+  async function validateBackupJsonText(jsonText: string) {
+    const validatedBackup = validateDatabaseBackupJson(jsonText);
+    const loadedCurrentSummary = await getCurrentDatabaseBackupSummary();
+
+    setValidationResult(validatedBackup);
+    setCurrentSummary(loadedCurrentSummary);
+    setValidateStatus("success");
+  }
+
   async function handleValidateBackupFile(
     event: ChangeEvent<HTMLInputElement>,
   ) {
     const selectedFile = event.target.files?.[0];
 
-    setValidationResult(null);
-    setCurrentSummary(null);
-    setRestoreResult(null);
-    setHasConfirmedCurrentBackup(false);
-    setValidateStatus("idle");
-    setRestoreStatus("idle");
-    setValidateErrorMessage("");
-    setRestoreErrorMessage("");
+    resetRestorePreview();
+    setEncryptedValidateStatus("idle");
+    setEncryptedValidateErrorMessage("");
     setSelectedFileName(selectedFile?.name ?? "");
+    setEncryptedSelectedFileName("");
 
     if (!selectedFile) {
       return;
@@ -223,15 +254,49 @@ export function BackupPage() {
 
     try {
       const jsonText = await selectedFile.text();
-      const validatedBackup = validateDatabaseBackupJson(jsonText);
-      const loadedCurrentSummary = await getCurrentDatabaseBackupSummary();
-
-      setValidationResult(validatedBackup);
-      setCurrentSummary(loadedCurrentSummary);
-      setValidateStatus("success");
+      await validateBackupJsonText(jsonText);
     } catch (error: unknown) {
       console.error(error);
       setValidateErrorMessage(getErrorMessage(error));
+      setValidateStatus("error");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  async function handleValidateEncryptedBackupFile(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const selectedFile = event.target.files?.[0];
+
+    resetRestorePreview();
+    setEncryptedValidateStatus("idle");
+    setEncryptedValidateErrorMessage("");
+    setSelectedFileName("");
+    setEncryptedSelectedFileName(selectedFile?.name ?? "");
+
+    if (!selectedFile) {
+      return;
+    }
+
+    setEncryptedValidateStatus("running");
+    setValidateStatus("running");
+
+    try {
+      const encryptedJsonText = await selectedFile.text();
+      const decryptedJsonText = await decryptBackupJson(
+        encryptedJsonText,
+        decryptPassword,
+      );
+
+      await validateBackupJsonText(decryptedJsonText);
+
+      setEncryptedValidateStatus("success");
+      setDecryptPassword("");
+    } catch (error: unknown) {
+      console.error(error);
+      setEncryptedValidateErrorMessage(getErrorMessage(error));
+      setEncryptedValidateStatus("error");
       setValidateStatus("error");
     } finally {
       event.target.value = "";
@@ -512,36 +577,116 @@ export function BackupPage() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={20} className="text-slate-700" />
-                <h2 className="text-lg font-bold text-slate-900">
-                  バックアップJSONの検証・復元
-                </h2>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                保存済みの通常JSONファイルを読み込み、このアプリのバックアップとして使える形式か確認します。
-              </p>
-            </div>
-
-            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-              <FileCheck2 size={16} />
-              通常JSONを選択
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={(event) => void handleValidateBackupFile(event)}
-                className="hidden"
-              />
-            </label>
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={20} className="text-slate-700" />
+            <h2 className="text-lg font-bold text-slate-900">
+              バックアップの検証・復元
+            </h2>
           </div>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            通常JSONまたは暗号化JSONを読み込み、このアプリのバックアップとして使える形式か確認します。
+          </p>
 
-          {selectedFileName && (
-            <p className="mt-4 text-sm text-slate-500">
-              選択ファイル: {selectedFileName}
-            </p>
-          )}
+          <div className="mt-5 grid gap-4 xl:grid-cols-2">
+            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-base font-bold text-slate-900">
+                通常JSONから復元
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                平文のバックアップJSONを選択します。
+              </p>
+
+              <label className="mt-4 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                <FileCheck2 size={16} />
+                通常JSONを選択
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={(event) => void handleValidateBackupFile(event)}
+                  className="hidden"
+                />
+              </label>
+
+              {selectedFileName && (
+                <p className="mt-4 text-sm text-slate-500">
+                  選択ファイル: {selectedFileName}
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-base font-bold text-slate-900">
+                暗号化JSONから復元
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                暗号化バックアップJSONと、作成時に設定したパスワードを使って復号します。
+              </p>
+
+              <div className="mt-4">
+                <label
+                  htmlFor="backup-decrypt-password"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  復号パスワード
+                </label>
+                <input
+                  id="backup-decrypt-password"
+                  type="password"
+                  value={decryptPassword}
+                  onChange={(event) => {
+                    setDecryptPassword(event.target.value);
+                    setEncryptedValidateStatus("idle");
+                    setEncryptedValidateErrorMessage("");
+                  }}
+                  placeholder="暗号化時のパスワード"
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
+
+              <label
+                className={
+                  canSelectEncryptedBackup
+                    ? "mt-4 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    : "mt-4 inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-400 opacity-60"
+                }
+              >
+                <LockKeyhole size={16} />
+                暗号化JSONを選択
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  disabled={!canSelectEncryptedBackup}
+                  onChange={(event) =>
+                    void handleValidateEncryptedBackupFile(event)
+                  }
+                  className="hidden"
+                />
+              </label>
+
+              {encryptedSelectedFileName && (
+                <p className="mt-4 text-sm text-slate-500">
+                  選択ファイル: {encryptedSelectedFileName}
+                </p>
+              )}
+
+              {encryptedValidateStatus === "success" && (
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                  暗号化バックアップを復号し、検証しました。
+                </div>
+              )}
+
+              {encryptedValidateStatus === "error" && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <p className="font-semibold">
+                    暗号化バックアップの復号・検証に失敗しました。
+                  </p>
+                  <p className="mt-1 break-all">
+                    {encryptedValidateErrorMessage}
+                  </p>
+                </div>
+              )}
+            </section>
+          </div>
 
           {validateStatus === "running" && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -654,14 +799,15 @@ export function BackupPage() {
             </div>
           )}
 
-          {validateStatus === "error" && (
-            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              <p className="font-semibold">
-                バックアップJSONの検証に失敗しました。
-              </p>
-              <p className="mt-1 break-all">{validateErrorMessage}</p>
-            </div>
-          )}
+          {validateStatus === "error" &&
+            encryptedValidateStatus !== "error" && (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <p className="font-semibold">
+                  バックアップJSONの検証に失敗しました。
+                </p>
+                <p className="mt-1 break-all">{validateErrorMessage}</p>
+              </div>
+            )}
         </section>
       </div>
     </div>
