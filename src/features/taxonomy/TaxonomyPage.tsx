@@ -78,7 +78,7 @@ function getItemKindLabel(kind: EditableItemKind): string {
     return "問い合わせ分類";
   }
 
-  return "共通共通タグ";
+  return "共通タグ";
 }
 
 export function TaxonomyPage() {
@@ -675,7 +675,7 @@ function PageTitle() {
     <div className="mb-6">
       <h1 className="text-2xl font-bold text-slate-900">分類管理</h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        ナレッジ分類、問い合わせ分類、共通共通タグを管理します。
+        ナレッジ分類、問い合わせ分類、共通タグを管理します。
       </p>
     </div>
   );

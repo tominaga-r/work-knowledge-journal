@@ -484,10 +484,6 @@ export function BackupPage() {
           </div>
 
           <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-xs leading-5 text-slate-500">
-              暗号化方式: AES-GCM / 鍵導出: PBKDF2 SHA-256
-            </p>
-
             <button
               type="button"
               onClick={() => void handleCreateEncryptedBackup()}
