@@ -30,6 +30,13 @@ import {
 
 type ActionStatus = "idle" | "running" | "success" | "error";
 
+type RestoreSource = "plain" | "encrypted";
+
+const restoreSourceLabels: Record<RestoreSource, string> = {
+  plain: "通常ファイル",
+  encrypted: "暗号化ファイル",
+};
+
 function downloadJsonFile(json: string, fileName: string): void {
   const blob = new Blob([json], {
     type: "application/json;charset=utf-8",
@@ -54,6 +61,9 @@ export function BackupPage() {
     useState<DatabaseBackupSummary | null>(null);
   const [restoreResult, setRestoreResult] =
     useState<RestoreDatabaseBackupResult | null>(null);
+  const [restoreSource, setRestoreSource] = useState<RestoreSource | null>(
+    null,
+  );
   const [exportStatus, setExportStatus] = useState<ActionStatus>("idle");
   const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
   const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
@@ -118,13 +128,13 @@ export function BackupPage() {
     setValidationResult(null);
     setCurrentSummary(null);
     setRestoreResult(null);
+    setRestoreSource(null);
     setHasConfirmedCurrentBackup(false);
     setValidateStatus("idle");
     setRestoreStatus("idle");
     setValidateErrorMessage("");
     setRestoreErrorMessage("");
   }
-
   async function handleCreateBackup() {
     setExportStatus("running");
     setCopyStatus("idle");
@@ -255,6 +265,7 @@ export function BackupPage() {
     try {
       const jsonText = await selectedFile.text();
       await validateBackupJsonText(jsonText);
+      setRestoreSource("plain");
     } catch (error: unknown) {
       console.error(error);
       setValidateErrorMessage(getErrorMessage(error));
@@ -291,6 +302,7 @@ export function BackupPage() {
 
       await validateBackupJsonText(decryptedJsonText);
 
+      setRestoreSource("encrypted");
       setEncryptedValidateStatus("success");
       setDecryptPassword("");
     } catch (error: unknown) {
@@ -704,6 +716,17 @@ export function BackupPage() {
                   作成日時: {validationResult.summary.exportedAt}
                 </p>
               </div>
+
+              {restoreSource && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <p className="font-semibold">
+                    復元元: {restoreSourceLabels[restoreSource]}
+                  </p>
+                  <p className="mt-1 text-slate-500">
+                    選択した{restoreSourceLabels[restoreSource]}を検証済みです。
+                  </p>
+                </div>
+              )}
 
               {validationResult.warnings.length > 0 && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">

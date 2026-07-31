@@ -60,12 +60,21 @@ export type RestoreDatabaseBackupResult = {
 };
 
 function createBackupFileName(exportedAt: string): string {
-  const normalizedTimestamp = exportedAt
+  const timestamp = exportedAt.replace(/\D/g, "").slice(0, 14);
+
+  if (timestamp.length === 14) {
+    const datePart = timestamp.slice(0, 8);
+    const timePart = timestamp.slice(8, 14);
+
+    return `${datePart}-${timePart}-work-knowledge-journal-backup.json`;
+  }
+
+  const fallbackTimestamp = exportedAt
     .replace(/-/g, "")
     .replace(/:/g, "")
     .replace(".", "-");
 
-  return `work-knowledge-journal-backup-${normalizedTimestamp}.json`;
+  return `work-knowledge-journal-backup-${fallbackTimestamp}.json`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
