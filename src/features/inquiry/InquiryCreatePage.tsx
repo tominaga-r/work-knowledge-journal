@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
+import { importTextFile } from "../../lib/utils/textFileImport";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
 import { todayDateString } from "../../lib/utils/date";
@@ -77,6 +79,8 @@ export function InquiryCreatePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [categoryLoadError, setCategoryLoadError] = useState("");
   const [tagLoadError, setTagLoadError] = useState("");
+  const [importMessage, setImportMessage] = useState("");
+  const [importErrorMessage, setImportErrorMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -128,6 +132,8 @@ export function InquiryCreatePage() {
       ...current,
       [key]: undefined,
     }));
+    setImportMessage("");
+    setImportErrorMessage("");
 
     if (status === "error") {
       setStatus("idle");
@@ -151,6 +157,42 @@ export function InquiryCreatePage() {
       ...current,
       tagIds: undefined,
     }));
+  }
+
+  async function handleImportTextFile(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+
+    setImportMessage("");
+    setImportErrorMessage("");
+
+    if (!selectedFile) {
+      return;
+    }
+
+    try {
+      const importedFile = await importTextFile(selectedFile);
+
+      setForm((current) => ({
+        ...current,
+        title: importedFile.title,
+        content: importedFile.content,
+      }));
+
+      setFieldErrors((current) => ({
+        ...current,
+        title: undefined,
+        content: undefined,
+      }));
+
+      setImportMessage(
+        `${importedFile.fileName} を読み込み、タイトルと問い合わせ内容に反映しました。`,
+      );
+    } catch (error: unknown) {
+      console.error(error);
+      setImportErrorMessage(getErrorMessage(error));
+    } finally {
+      event.target.value = "";
+    }
   }
 
   async function handleSubmit() {
@@ -226,9 +268,52 @@ export function InquiryCreatePage() {
         </div>
       </div>
 
+      <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="font-semibold text-slate-900">
+              テキストファイルから取り込む
+            </p>
+            <p className="mt-1 leading-6 text-slate-500">
+              .txt / .md
+              ファイルを読み込み、1行目をタイトル候補、全文を問い合わせ内容として反映します。
+              既に入力しているタイトルと問い合わせ内容は上書きされます。
+            </p>
+            <p className="mt-2 leading-6 text-amber-700">
+              取り込み後は必ずフォームで内容を確認してから保存してください。個人情報・社外秘情報・非公開情報が含まれる場合は削除または匿名化してください。
+            </p>
+          </div>
+
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+            ファイルを選択
+            <input
+              type="file"
+              accept=".txt,.md,text/plain,text/markdown"
+              onChange={(event) => void handleImportTextFile(event)}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {importMessage && (
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+            {importMessage}
+          </div>
+        )}
+
+        {importErrorMessage && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-semibold">ファイルの読み込みに失敗しました。</p>
+            <p className="mt-1 break-all">{importErrorMessage}</p>
+          </div>
+        )}
+      </div>
+
       {categoryLoadError && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">問い合わせ分類の読み込みに失敗しました。</p>
+          <p className="font-semibold">
+            問い合わせ分類の読み込みに失敗しました。
+          </p>
           <p className="mt-1 break-all">{categoryLoadError}</p>
         </div>
       )}
