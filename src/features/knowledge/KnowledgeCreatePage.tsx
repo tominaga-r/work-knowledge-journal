@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import { importTextFile } from "../../lib/utils/textFileImport";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
 import { createKnowledgeItem } from "./knowledgeRepository";
@@ -15,6 +14,8 @@ import {
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
 import { TagRecord, listTags } from "../taxonomy/tagRepository";
 import { getErrorMessage } from "../../lib/utils/error";
+import { importTextFile } from "../../lib/utils/textFileImport";
+import type { ImportedTextEntry } from "../../lib/utils/textFileImport";
 
 type FormState = {
   title: string;
@@ -74,6 +75,8 @@ export function KnowledgeCreatePage() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [categoryLoadError, setCategoryLoadError] = useState<string>("");
   const [tagLoadError, setTagLoadError] = useState<string>("");
+  const [importFileName, setImportFileName] = useState("");
+  const [importEntries, setImportEntries] = useState<ImportedTextEntry[]>([]);
   const [importMessage, setImportMessage] = useState("");
   const [importErrorMessage, setImportErrorMessage] = useState("");
 
@@ -122,7 +125,6 @@ export function KnowledgeCreatePage() {
       ...current,
       [key]: value,
     }));
-
     setFieldErrors((current) => ({
       ...current,
       [key]: undefined,
@@ -157,6 +159,8 @@ export function KnowledgeCreatePage() {
   async function handleImportTextFile(event: ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.target.files?.[0];
 
+    setImportFileName("");
+    setImportEntries([]);
     setImportMessage("");
     setImportErrorMessage("");
 
@@ -167,26 +171,40 @@ export function KnowledgeCreatePage() {
     try {
       const importedFile = await importTextFile(selectedFile);
 
-      setForm((current) => ({
-        ...current,
-        title: importedFile.title,
-        content: importedFile.content,
-      }));
-
-      setFieldErrors((current) => ({
-        ...current,
-        title: undefined,
-        content: undefined,
-      }));
-
+      setImportFileName(importedFile.fileName);
+      setImportEntries(importedFile.entries);
       setImportMessage(
-        `${importedFile.fileName} を読み込み、タイトルと本文に反映しました。`,
+        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。`,
       );
     } catch (error: unknown) {
       console.error(error);
       setImportErrorMessage(getErrorMessage(error));
     } finally {
       event.target.value = "";
+    }
+  }
+
+  function applyImportEntryToForm(entry: ImportedTextEntry) {
+    setForm((current) => ({
+      ...current,
+      title: entry.title,
+      content: entry.content,
+    }));
+
+    setFieldErrors((current) => ({
+      ...current,
+      title: undefined,
+      content: undefined,
+    }));
+
+    setImportMessage(
+      `「${entry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
+    );
+    setImportErrorMessage("");
+
+    if (status === "error") {
+      setStatus("idle");
+      setErrorMessage("");
     }
   }
 
@@ -220,7 +238,6 @@ export function KnowledgeCreatePage() {
 
     try {
       await createKnowledgeItem(validationResult.data);
-
       setStatus("success");
       navigate("/knowledge");
     } catch (error: unknown) {
@@ -270,12 +287,13 @@ export function KnowledgeCreatePage() {
               テキストファイルから取り込む
             </p>
             <p className="mt-1 leading-6 text-slate-500">
-              .txt / .md
-              ファイルを読み込み、1行目をタイトル候補、全文を本文として反映します。
-              既に入力しているタイトルと本文は上書きされます。
+              .txt / .md ファイルを読み込み、##
+              見出しごとに取り込み候補を作成します。
+              候補を選ぶと、タイトルと本文に反映されます。
             </p>
             <p className="mt-2 leading-6 text-amber-700">
-              取り込み後は必ずフォームで内容を確認してから保存してください。個人情報・社外秘情報・非公開情報が含まれる場合は削除または匿名化してください。
+              取り込み後は必ずフォームで内容を確認してから保存してください。
+              個人情報・社外秘情報・非公開情報が含まれる場合は削除または匿名化してください。
             </p>
           </div>
 
@@ -300,6 +318,48 @@ export function KnowledgeCreatePage() {
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <p className="font-semibold">ファイルの読み込みに失敗しました。</p>
             <p className="mt-1 break-all">{importErrorMessage}</p>
+          </div>
+        )}
+
+        {importEntries.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+              <p className="font-semibold text-slate-900">取り込み候補</p>
+              <p className="text-xs text-slate-500">
+                {importFileName} / {importEntries.length}件
+              </p>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              {importEntries.map((entry, index) => (
+                <div
+                  key={entry.id}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-500">
+                        候補 {index + 1}
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {entry.title}
+                      </p>
+                      <p className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                        {entry.content}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => applyImportEntryToForm(entry)}
+                      className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                    >
+                      フォームに反映
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -509,10 +569,8 @@ export function KnowledgeCreatePage() {
           <div>
             <p className="text-sm font-semibold text-slate-900">共通タグ</p>
             <p className="mt-1 text-xs text-slate-500">
-              既存共通タグから選択します。共通タグの追加・編集・削除はStep
-              5で実装します。
+              既存共通タグから選択します。共通タグの追加・編集・削除は分類管理で行います。
             </p>
-
             {tags.length === 0 ? (
               <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
                 登録済み共通タグがありません。
@@ -539,7 +597,6 @@ export function KnowledgeCreatePage() {
                 })}
               </div>
             )}
-
             {fieldErrors.tagIds && (
               <p className="mt-2 text-xs font-medium text-red-600">
                 {fieldErrors.tagIds}
@@ -558,6 +615,7 @@ export function KnowledgeCreatePage() {
             />
             お気に入りにする
           </label>
+
           {fieldErrors.isFavorite && (
             <p className="-mt-3 text-xs font-medium text-red-600">
               {fieldErrors.isFavorite}
@@ -572,7 +630,6 @@ export function KnowledgeCreatePage() {
           >
             キャンセル
           </Link>
-
           <button
             type="submit"
             disabled={status === "saving"}
