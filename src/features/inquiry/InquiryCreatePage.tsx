@@ -31,6 +31,8 @@ type FormState = {
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
 
+type SubmitMode = "backToList" | "continueImport";
+
 const initialFormState: FormState = {
   title: "",
   content: "",
@@ -81,8 +83,13 @@ export function InquiryCreatePage() {
   const [tagLoadError, setTagLoadError] = useState("");
   const [importFileName, setImportFileName] = useState("");
   const [importEntries, setImportEntries] = useState<ImportedTextEntry[]>([]);
+  const [activeImportEntryId, setActiveImportEntryId] = useState<string | null>(
+    null,
+  );
   const [importMessage, setImportMessage] = useState("");
   const [importErrorMessage, setImportErrorMessage] = useState("");
+
+  const hasActiveImportEntry = activeImportEntryId !== null;
 
   useEffect(() => {
     let isMounted = true;
@@ -165,6 +172,7 @@ export function InquiryCreatePage() {
 
     setImportFileName("");
     setImportEntries([]);
+    setActiveImportEntryId(null);
     setImportMessage("");
     setImportErrorMessage("");
 
@@ -178,7 +186,7 @@ export function InquiryCreatePage() {
       setImportFileName(importedFile.fileName);
       setImportEntries(importedFile.entries);
       setImportMessage(
-        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。`,
+        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。候補を選んでフォームに反映してください。`,
       );
     } catch (error: unknown) {
       console.error(error);
@@ -193,14 +201,19 @@ export function InquiryCreatePage() {
       ...current,
       title: entry.title,
       content: entry.content,
+      responseNote: "",
+      nextAction: "",
     }));
 
     setFieldErrors((current) => ({
       ...current,
       title: undefined,
       content: undefined,
+      responseNote: undefined,
+      nextAction: undefined,
     }));
 
+    setActiveImportEntryId(entry.id);
     setImportMessage(
       `「${entry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
     );
@@ -212,7 +225,56 @@ export function InquiryCreatePage() {
     }
   }
 
-  async function handleSubmit() {
+  function applyNextImportEntryAfterSave(savedEntryId: string) {
+    const savedIndex = importEntries.findIndex(
+      (entry) => entry.id === savedEntryId,
+    );
+    const remainingEntries = importEntries.filter(
+      (entry) => entry.id !== savedEntryId,
+    );
+
+    setImportEntries(remainingEntries);
+
+    if (remainingEntries.length === 0) {
+      setActiveImportEntryId(null);
+      setForm((current) => ({
+        ...current,
+        title: "",
+        content: "",
+        responseNote: "",
+        nextAction: "",
+      }));
+      setImportMessage(
+        "すべての取り込み候補を保存しました。続けて登録する場合は新しいファイルを選択してください。",
+      );
+      return;
+    }
+
+    const nextIndex =
+      savedIndex >= 0 && savedIndex < remainingEntries.length ? savedIndex : 0;
+    const nextEntry = remainingEntries[nextIndex];
+
+    setActiveImportEntryId(nextEntry.id);
+    setForm((current) => ({
+      ...current,
+      title: nextEntry.title,
+      content: nextEntry.content,
+      responseNote: "",
+      nextAction: "",
+    }));
+    setFieldErrors((current) => ({
+      ...current,
+      title: undefined,
+      content: undefined,
+      responseNote: undefined,
+      nextAction: undefined,
+    }));
+    setImportMessage(
+      `保存しました。次の候補「${nextEntry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
+    );
+  }
+
+  async function handleSubmit(mode: SubmitMode) {
     if (status === "saving") {
       return;
     }
@@ -244,6 +306,13 @@ export function InquiryCreatePage() {
 
     try {
       await createInquiryNote(validationResult.data);
+
+      if (mode === "continueImport" && activeImportEntryId) {
+        applyNextImportEntryAfterSave(activeImportEntryId);
+        setStatus("idle");
+        return;
+      }
+
       navigate("/inquiries");
     } catch (error: unknown) {
       console.error(error);
@@ -331,39 +400,52 @@ export function InquiryCreatePage() {
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
               <p className="font-semibold text-slate-900">取り込み候補</p>
               <p className="text-xs text-slate-500">
-                {importFileName} / {importEntries.length}件
+                {importFileName} / 残り {importEntries.length}件
               </p>
             </div>
 
             <div className="mt-3 space-y-3">
-              {importEntries.map((entry, index) => (
-                <div
-                  key={entry.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-500">
-                        候補 {index + 1}
-                      </p>
-                      <p className="mt-1 font-semibold text-slate-900">
-                        {entry.title}
-                      </p>
-                      <p className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                        {entry.content}
-                      </p>
-                    </div>
+              {importEntries.map((entry, index) => {
+                const isActive = entry.id === activeImportEntryId;
 
-                    <button
-                      type="button"
-                      onClick={() => applyImportEntryToForm(entry)}
-                      className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                    >
-                      フォームに反映
-                    </button>
+                return (
+                  <div
+                    key={entry.id}
+                    className={
+                      isActive
+                        ? "rounded-xl border border-slate-900 bg-white p-4"
+                        : "rounded-xl border border-slate-200 bg-white p-4"
+                    }
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-500">
+                          候補 {index + 1}
+                          {isActive && (
+                            <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[11px] text-white">
+                              反映中
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {entry.title}
+                        </p>
+                        <p className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                          {entry.content}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => applyImportEntryToForm(entry)}
+                        className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                      >
+                        フォームに反映
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -395,7 +477,7 @@ export function InquiryCreatePage() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void handleSubmit();
+          void handleSubmit("backToList");
         }}
         className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
       >
@@ -658,13 +740,25 @@ export function InquiryCreatePage() {
           >
             キャンセル
           </Link>
-          <button
-            type="submit"
-            disabled={status === "saving"}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {status === "saving" ? "保存中..." : "保存する"}
-          </button>
+
+          {hasActiveImportEntry ? (
+            <button
+              type="button"
+              onClick={() => void handleSubmit("continueImport")}
+              disabled={status === "saving"}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {status === "saving" ? "保存中..." : "保存して次の候補へ"}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={status === "saving"}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {status === "saving" ? "保存中..." : "保存する"}
+            </button>
+          )}
         </div>
       </form>
     </div>
