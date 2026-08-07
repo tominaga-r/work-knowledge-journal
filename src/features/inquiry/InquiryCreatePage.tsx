@@ -348,7 +348,7 @@ export function InquiryCreatePage() {
             <p className="font-semibold">入力前の注意</p>
             <p className="mt-1">
               問い合わせ内容は匿名化し、対応の振り返り・次回の業務改善・対応品質向上に使える形で記録してください。
-              顧客の氏名・連絡先・具体的な問い合わせ者情報は入力しないでください。
+              顧客の氏名・連絡先・個人情報は入力しないでください。
             </p>
           </div>
         </div>

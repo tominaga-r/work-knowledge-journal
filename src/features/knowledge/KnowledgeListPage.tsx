@@ -213,7 +213,7 @@ export function KnowledgeListPage() {
       </div>
 
       <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        ナレッジには、顧客の個人情報、社外秘情報、非公開の商品情報を入力しないでください。
+        顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報は保存しないでください。
         匿名化・一般化した内容として記録してください。
       </div>
 

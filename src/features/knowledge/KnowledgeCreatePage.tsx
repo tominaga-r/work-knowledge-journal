@@ -632,7 +632,7 @@ export function KnowledgeCreatePage() {
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-slate-500">
-                  具体的な社内資料名ではなく、抽象的な由来を選びます。
+                  内容の由来に近いものを選択してください。
                 </p>
               )}
             </div>
