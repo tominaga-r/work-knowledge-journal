@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Star, X } from "lucide-react";
+import { Plus, Search, Star, X } from "lucide-react";
 import {
   KnowledgeListItem,
   SearchKnowledgeFilters,
@@ -214,7 +214,7 @@ export function KnowledgeListPage() {
 
       <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         ナレッジには、顧客の個人情報、社外秘情報、非公開の商品情報を入力しないでください。
-        商品知識や対応フレーズは、匿名化・一般化した内容として記録します。
+        匿名化・一般化した内容として記録してください。
       </div>
 
       {optionErrorMessage && (
@@ -420,10 +420,26 @@ export function KnowledgeListPage() {
       )}
 
       {status === "ready" && items.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">
-          {activeFilters
-            ? "条件に一致するナレッジがありません。条件を変更してください。"
-            : "まだナレッジが登録されていません。まずは業務手順や接客フレーズを登録します。"}
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8">
+          <p className="text-sm font-semibold text-slate-900">
+            {activeFilters
+              ? "条件に一致するナレッジがありません。"
+              : "ナレッジがまだありません。"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {activeFilters
+              ? "条件を変更するか、条件クリアを押してください。"
+              : "業務手順、接客フレーズ、FAQ、注意事項などを記録してみよう"}
+          </p>
+          {!activeFilters && (
+            <Link
+              to="/knowledge/new"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              <Plus size={16} />
+              最初のナレッジを作成
+            </Link>
+          )}
         </div>
       )}
 

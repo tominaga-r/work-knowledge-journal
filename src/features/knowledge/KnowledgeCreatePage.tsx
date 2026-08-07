@@ -332,8 +332,8 @@ export function KnowledgeCreatePage() {
           <div>
             <p className="font-semibold">入力前の注意</p>
             <p className="mt-1">
-              顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報は入力しないでください。
-              sourceには具体的な社内資料名や顧客名を書かず、抽象的な由来だけを選択してください。
+              個人名や社外秘の内容は避けて記録してください。
+              あとで共有・見返しやすいように、sourceは内容の由来に近いものを選択してください。
             </p>
           </div>
         </div>
@@ -498,7 +498,7 @@ export function KnowledgeCreatePage() {
                 id="knowledge-title-help"
                 className="mt-1 text-xs text-slate-500"
               >
-                120文字以内。個人名や社外秘資料名は含めないでください。
+                120文字以内。
               </p>
             )}
           </div>
@@ -537,7 +537,7 @@ export function KnowledgeCreatePage() {
                 id="knowledge-content-help"
                 className="mt-1 text-xs text-slate-500"
               >
-                8000文字以内。匿名化・一般化した業務ナレッジとして記録します。
+                8000文字以内。
               </p>
             )}
           </div>

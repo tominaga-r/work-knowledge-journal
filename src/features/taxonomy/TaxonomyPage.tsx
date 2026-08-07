@@ -416,7 +416,6 @@ export function TaxonomyPage() {
             <p className="font-semibold">登録・編集時の注意</p>
             <p className="mt-1">
               分類名・共通タグ名には、顧客名、社外秘資料名、非公開の商品名などを含めないでください。
-              検索・分類しやすい一般化された名称にします。
             </p>
           </div>
         </div>

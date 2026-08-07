@@ -352,7 +352,7 @@ export function KnowledgeEditPage() {
           <div>
             <p className="font-semibold">編集時の注意</p>
             <p className="mt-1">
-              顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報は入力しないでください。
+              個人名や社外秘の内容は避けて記録してください。
               既存本文にそのような情報が含まれていないかも確認してください。
             </p>
           </div>
@@ -420,7 +420,7 @@ export function KnowledgeEditPage() {
                 id="knowledge-edit-title-help"
                 className="mt-1 text-xs text-slate-500"
               >
-                120文字以内。個人名や社外秘資料名は含めないでください。
+                120文字以内。
               </p>
             )}
           </div>
@@ -458,7 +458,7 @@ export function KnowledgeEditPage() {
                 id="knowledge-edit-content-help"
                 className="mt-1 text-xs text-slate-500"
               >
-                8000文字以内。匿名化・一般化した業務ナレッジとして記録します。
+                8000文字以内。
               </p>
             )}
           </div>

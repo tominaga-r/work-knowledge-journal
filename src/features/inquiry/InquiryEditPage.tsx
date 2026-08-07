@@ -330,7 +330,7 @@ export function InquiryEditPage() {
           <div>
             <p className="font-semibold">編集時の注意</p>
             <p className="mt-1">
-              顧客の氏名・連絡先・注文番号・購入履歴・具体的な問い合わせ者情報は入力しないでください。
+              顧客の氏名・連絡先・具体的な問い合わせ者情報は入力しないでください。
               既存本文にそのような情報が含まれていないかも確認してください。
             </p>
           </div>
@@ -388,9 +388,7 @@ export function InquiryEditPage() {
                 {fieldErrors.title}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                120文字以内。顧客名や注文番号は含めないでください。
-              </p>
+              <p className="mt-1 text-xs text-slate-500">120文字以内。</p>
             )}
           </div>
 
@@ -415,9 +413,7 @@ export function InquiryEditPage() {
                 {fieldErrors.content}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                8000文字以内。具体的な個人情報は除いて記録します。
-              </p>
+              <p className="mt-1 text-xs text-slate-500">8000文字以内。</p>
             )}
           </div>
 

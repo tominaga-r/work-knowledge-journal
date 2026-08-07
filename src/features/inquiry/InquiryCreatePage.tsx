@@ -347,8 +347,8 @@ export function InquiryCreatePage() {
           <div>
             <p className="font-semibold">入力前の注意</p>
             <p className="mt-1">
-              顧客の氏名・連絡先・注文番号・購入履歴・具体的な問い合わせ者情報は入力しないでください。
-              問い合わせ内容は匿名化し、業務改善や対応品質向上に使える形で一般化して記録します。
+              問い合わせ内容は匿名化し、対応の振り返り・次回の業務改善・対応品質向上に使える形で記録してください。
+              顧客の氏名・連絡先・具体的な問い合わせ者情報は入力しないでください。
             </p>
           </div>
         </div>
@@ -503,9 +503,7 @@ export function InquiryCreatePage() {
                 {fieldErrors.title}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                120文字以内。顧客名や注文番号は含めないでください。
-              </p>
+              <p className="mt-1 text-xs text-slate-500">120文字以内。</p>
             )}
           </div>
 
@@ -531,9 +529,7 @@ export function InquiryCreatePage() {
                 {fieldErrors.content}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                8000文字以内。具体的な個人情報は除いて記録します。
-              </p>
+              <p className="mt-1 text-xs text-slate-500">8000文字以内。</p>
             )}
           </div>
 

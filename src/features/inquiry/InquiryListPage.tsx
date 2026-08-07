@@ -390,7 +390,7 @@ export function InquiryListPage() {
           <p className="mt-2 text-sm leading-6 text-slate-500">
             {activeFilters
               ? "条件を変更するか、条件クリアを押してください。"
-              : "よくある問い合わせや対応で気づいたことを、個人情報を含めずに記録できます。"}
+              : "よくある問い合わせや対応で気づいたことを記録できます。"}
           </p>
 
           {!activeFilters && (

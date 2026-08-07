@@ -197,7 +197,7 @@ export function DashboardPage() {
 
           <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
             このアプリには、顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報を保存しないでください。
-            MVPではSQLiteを平文保存とし、保存対象を匿名化された業務メモに限定します。
+            保存する内容は、あとで見返せるように整理した業務メモを想定しています。
           </section>
         </div>
       )}
