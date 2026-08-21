@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "work-knowledge-journal",
+  "productName": "業務ナレッジノート",
   "version": "0.1.0",
-  "identifier": "com.local.workknowledgejournal",
+  "identifier": "com.tominagar.workknowledgejournal",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "work-knowledge-journal",
+        "title": "業務ナレッジノート",
         "width": 800,
         "height": 600
       }
