@@ -37,11 +37,15 @@ const navItems = [
   { to: "/settings", label: "設定", icon: Settings },
 ];
 
+function isActivePath(pathname: string, to: string): boolean {
+  return to === "/" ? pathname === "/" : pathname.startsWith(to);
+}
+
 function Sidebar() {
   const location = useLocation();
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white px-4 py-5 md:block">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white px-4 py-5 md:block">
       <div className="mb-8">
         <p className="text-lg font-bold text-slate-900">業務ナレッジノート</p>
         <p className="text-xs text-slate-500">Work Knowledge Journal</p>
@@ -50,10 +54,7 @@ function Sidebar() {
       <nav className="space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            item.to === "/"
-              ? location.pathname === "/"
-              : location.pathname.startsWith(item.to);
+          const isActive = isActivePath(location.pathname, item.to);
 
           return (
             <Link
@@ -66,8 +67,8 @@ function Sidebar() {
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
               )}
             >
-              <Icon size={18} />
-              {item.label}
+              <Icon size={18} className="shrink-0" />
+              <span className="min-w-0 truncate">{item.label}</span>
             </Link>
           );
         })}
@@ -76,49 +77,92 @@ function Sidebar() {
   );
 }
 
+function MobileNavigation() {
+  const location = useLocation();
+
+  return (
+    <div className="border-b border-slate-200 bg-white px-3 py-3 md:hidden">
+      <div className="mb-3">
+        <p className="text-base font-bold text-slate-900">業務ナレッジノート</p>
+        <p className="text-xs text-slate-500">Work Knowledge Journal</p>
+      </div>
+
+      <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = isActivePath(location.pathname, item.to);
+
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={clsx(
+                "flex min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition",
+                isActive
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900",
+              )}
+            >
+              <Icon size={16} className="shrink-0" />
+              <span className="min-w-0 truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-slate-100 text-slate-900">
-        <div className="flex min-h-screen">
+      <div className="min-h-screen overflow-x-hidden bg-slate-100 text-slate-900">
+        <div className="flex min-h-screen min-w-0">
           <Sidebar />
 
-          <main className="min-w-0 flex-1 p-4 md:p-8">
-            <div className="mx-auto max-w-6xl">
-              <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/knowledge" element={<KnowledgeListPage />} />
-                <Route
-                  path="/knowledge/new"
-                  element={<KnowledgeCreatePage />}
-                />
-                <Route
-                  path="/knowledge/:knowledgeId"
-                  element={<KnowledgeDetailPage />}
-                />
-                <Route
-                  path="/knowledge/:knowledgeId/edit"
-                  element={<KnowledgeEditPage />}
-                />
-                <Route path="/inquiries" element={<InquiryListPage />} />
-                <Route path="/inquiries/new" element={<InquiryCreatePage />} />
-                <Route
-                  path="/inquiries/:inquiryId"
-                  element={<InquiryDetailPage />}
-                />
-                <Route
-                  path="/inquiries/:inquiryId/edit"
-                  element={<InquiryEditPage />}
-                />
-                <Route
-                  path="/monthly-reviews"
-                  element={<MonthlyReviewPage />}
-                />
-                <Route path="/taxonomy" element={<TaxonomyPage />} />
-                <Route path="/settings" element={<BackupPage />} />
-              </Routes>
-            </div>
-          </main>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <MobileNavigation />
+
+            <main className="min-w-0 flex-1 p-4 md:p-8">
+              <div className="mx-auto w-full max-w-6xl min-w-0">
+                <Routes>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/knowledge" element={<KnowledgeListPage />} />
+                  <Route
+                    path="/knowledge/new"
+                    element={<KnowledgeCreatePage />}
+                  />
+                  <Route
+                    path="/knowledge/:knowledgeId"
+                    element={<KnowledgeDetailPage />}
+                  />
+                  <Route
+                    path="/knowledge/:knowledgeId/edit"
+                    element={<KnowledgeEditPage />}
+                  />
+                  <Route path="/inquiries" element={<InquiryListPage />} />
+                  <Route
+                    path="/inquiries/new"
+                    element={<InquiryCreatePage />}
+                  />
+                  <Route
+                    path="/inquiries/:inquiryId"
+                    element={<InquiryDetailPage />}
+                  />
+                  <Route
+                    path="/inquiries/:inquiryId/edit"
+                    element={<InquiryEditPage />}
+                  />
+                  <Route
+                    path="/monthly-reviews"
+                    element={<MonthlyReviewPage />}
+                  />
+                  <Route path="/taxonomy" element={<TaxonomyPage />} />
+                  <Route path="/settings" element={<BackupPage />} />
+                </Routes>
+              </div>
+            </main>
+          </div>
         </div>
       </div>
     </BrowserRouter>
