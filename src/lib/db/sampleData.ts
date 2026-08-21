@@ -183,7 +183,15 @@ async function initializeSampleDataInternal(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    await db.execute("ROLLBACK");
+    try {
+      await db.execute("ROLLBACK");
+    } catch (rollbackError) {
+      console.error(
+        "サンプルデータ初期化のロールバックに失敗しました。",
+        rollbackError,
+      );
+    }
+
     throw error;
   }
 }

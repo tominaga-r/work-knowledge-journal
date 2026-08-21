@@ -10,6 +10,6 @@ export function getErrorMessage(error: unknown): string {
   try {
     return JSON.stringify(error);
   } catch {
-    return "Unknown error";
+    return "予期しないエラーが発生しました。";
   }
 }

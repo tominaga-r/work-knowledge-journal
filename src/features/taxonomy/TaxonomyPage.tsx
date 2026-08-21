@@ -631,7 +631,7 @@ export function TaxonomyPage() {
               {getItemKindLabel(deletingItem.kind)}を削除
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              以下の分類を削除します。使用中の場合は削除できません。
+              以下の項目を削除します。使用中の場合は削除できません。
             </p>
 
             <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
