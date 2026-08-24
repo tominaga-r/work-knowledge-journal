@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "業務ナレッジノート",
+  "productName": "Work Knowledge Journal",
   "version": "0.1.0",
   "identifier": "com.tominagar.workknowledgejournal",
   "build": {
