@@ -87,7 +87,7 @@ function parseHeadingEntries(
   }
 
   for (const line of lines) {
-    const headingMatch = line.match(/^##\s+(.+)$/);
+    const headingMatch = line.match(/^##\s*(.+)$/);
 
     if (headingMatch) {
       pushCurrentEntry();
@@ -109,7 +109,7 @@ function parseHeadingEntries(
 function assertEntries(entries: ImportedTextEntry[]): void {
   if (entries.length === 0) {
     throw new Error(
-      "取り込み候補を作成できませんでした。## 見出しを追加するか、本文のあるテキストファイルを選択してください。",
+      "取り込み候補を作成できませんでした。##から始まる行を追加するか、本文のあるテキストファイルを選択してください。",
     );
   }
 
@@ -120,12 +120,6 @@ function assertEntries(entries: ImportedTextEntry[]): void {
   }
 
   for (const entry of entries) {
-    if (!entry.content) {
-      throw new Error(
-        `「${entry.title}」の本文が空です。見出しの下に本文を入力してください。`,
-      );
-    }
-
     if (entry.content.length > MAX_IMPORT_ENTRY_LENGTH) {
       throw new Error(
         `「${entry.title}」の本文が長すぎます。1件あたり${MAX_IMPORT_ENTRY_LENGTH}文字以内にしてください。`,

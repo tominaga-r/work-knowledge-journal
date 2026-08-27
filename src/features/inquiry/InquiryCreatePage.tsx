@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
@@ -90,6 +90,17 @@ export function InquiryCreatePage() {
   const [importErrorMessage, setImportErrorMessage] = useState("");
 
   const hasActiveImportEntry = activeImportEntryId !== null;
+
+  const importSectionRef = useRef<HTMLDivElement | null>(null);
+
+  function scrollToImportSection() {
+    window.requestAnimationFrame(() => {
+      importSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -225,7 +236,10 @@ export function InquiryCreatePage() {
     }
   }
 
-  function applyNextImportEntryAfterSave(savedEntryId: string) {
+  function applyNextImportEntryAfterSave(
+    savedEntryId: string,
+    savedTitle: string,
+  ) {
     const savedIndex = importEntries.findIndex(
       (entry) => entry.id === savedEntryId,
     );
@@ -245,8 +259,9 @@ export function InquiryCreatePage() {
         nextAction: "",
       }));
       setImportMessage(
-        "すべての取り込み候補を保存しました。続けて登録する場合は新しいファイルを選択してください。",
+        `「${savedTitle}」を保存しました。\nすべての取り込み候補を保存しました。続けて登録する場合は新しいファイルを選択してください。`,
       );
+      scrollToImportSection();
       return;
     }
 
@@ -270,8 +285,9 @@ export function InquiryCreatePage() {
       nextAction: undefined,
     }));
     setImportMessage(
-      `保存しました。次の候補「${nextEntry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
+      `「${savedTitle}」を保存しました。\n次の候補「${nextEntry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
     );
+    scrollToImportSection();
   }
 
   async function handleSubmit(mode: SubmitMode) {
@@ -305,10 +321,12 @@ export function InquiryCreatePage() {
     setFieldErrors({});
 
     try {
+      const savedTitle = validationResult.data.title;
+
       await createInquiryNote(validationResult.data);
 
       if (mode === "continueImport" && activeImportEntryId) {
-        applyNextImportEntryAfterSave(activeImportEntryId);
+        applyNextImportEntryAfterSave(activeImportEntryId, savedTitle);
         setStatus("idle");
         return;
       }
@@ -354,15 +372,18 @@ export function InquiryCreatePage() {
         </div>
       </div>
 
-      <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+      <div
+        ref={importSectionRef}
+        className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
+      >
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="font-semibold text-slate-900">
               テキストファイルから取り込む
             </p>
             <p className="mt-1 leading-6 text-slate-500">
-              .txt / .md ファイルを読み込み、##
-              見出しごとに取り込み候補を作成します。
+              .txt / .md ファイルを読み込み、
+              ##から始まる行を見出しとして取り込み候補を作成します。
               候補を選ぶと、タイトルと問い合わせ内容に反映されます。
             </p>
             <p className="mt-2 leading-6 text-amber-700">
@@ -383,7 +404,7 @@ export function InquiryCreatePage() {
         </div>
 
         {importMessage && (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          <div className="mt-4 whitespace-pre-wrap rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
             {importMessage}
           </div>
         )}
@@ -431,7 +452,8 @@ export function InquiryCreatePage() {
                           {entry.title}
                         </p>
                         <p className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                          {entry.content}
+                          {entry.content ||
+                            "本文が未入力です。追記して保存してください。"}
                         </p>
                       </div>
 
