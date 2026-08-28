@@ -49,21 +49,16 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64ToBytes(
-  base64: string,
-  fieldName: string,
-): Uint8Array<ArrayBuffer> {
+function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
   try {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
-
     for (let index = 0; index < binary.length; index += 1) {
       bytes[index] = binary.charCodeAt(index);
     }
-
     return bytes;
   } catch {
-    throw new Error(`${fieldName} のBase64形式が正しくありません。`);
+    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
   }
 }
 
@@ -166,26 +161,26 @@ export function parseEncryptedBackupJson(
     parsedValue = JSON.parse(jsonText);
   } catch {
     throw new Error(
-      "暗号化バックアップJSONとして読み込めませんでした。ファイル内容を確認してください。",
+      "暗号化バックアップファイルとして読み込めませんでした。ファイル内容を確認してください。",
     );
   }
 
   if (!isRecord(parsedValue)) {
-    throw new Error("暗号化バックアップJSONの形式が正しくありません。");
+    throw new Error("このアプリの暗号化バックアップファイルではありません。");
   }
 
   if (parsedValue.fileType !== ENCRYPTED_BACKUP_FILE_TYPE) {
-    throw new Error("このアプリの暗号化バックアップJSONではありません。");
+    throw new Error("このアプリの暗号化バックアップファイルではありません。");
   }
 
   if (parsedValue.version !== ENCRYPTED_BACKUP_VERSION) {
     throw new Error(
-      "対応していない暗号化バックアップ形式です。version 1 のJSONを選択してください。",
+      "対応していない暗号化バックアップ形式です。このアプリで作成した暗号化バックアップファイルを選択してください。",
     );
   }
 
   if (parsedValue.appName !== "Work Knowledge Journal") {
-    throw new Error("このアプリの暗号化バックアップJSONではありません。");
+    throw new Error("このアプリの暗号化バックアップファイルではありません。");
   }
 
   if (parsedValue.algorithm !== "AES-GCM") {
@@ -205,19 +200,19 @@ export function parseEncryptedBackupJson(
   }
 
   if (typeof parsedValue.encryptedAt !== "string" || !parsedValue.encryptedAt) {
-    throw new Error("暗号化日時 encryptedAt が正しくありません。");
+    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
   }
 
   if (typeof parsedValue.salt !== "string" || !parsedValue.salt) {
-    throw new Error("salt が正しくありません。");
+    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
   }
 
   if (typeof parsedValue.iv !== "string" || !parsedValue.iv) {
-    throw new Error("iv が正しくありません。");
+    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
   }
 
   if (typeof parsedValue.ciphertext !== "string" || !parsedValue.ciphertext) {
-    throw new Error("ciphertext が正しくありません。");
+    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
   }
 
   return parsedValue as EncryptedBackupData;
@@ -231,9 +226,9 @@ export async function decryptBackupJson(
 
   const normalizedPassword = normalizePassword(password);
   const encryptedBackup = parseEncryptedBackupJson(encryptedBackupJson);
-  const salt = base64ToBytes(encryptedBackup.salt, "salt");
-  const iv = base64ToBytes(encryptedBackup.iv, "iv");
-  const ciphertext = base64ToBytes(encryptedBackup.ciphertext, "ciphertext");
+  const salt = base64ToBytes(encryptedBackup.salt);
+  const iv = base64ToBytes(encryptedBackup.iv);
+  const ciphertext = base64ToBytes(encryptedBackup.ciphertext);
   const key = await deriveEncryptionKey(normalizedPassword, salt, ["decrypt"]);
   const normalizedIv = toArrayBufferBytes(iv);
   const normalizedCiphertext = toArrayBufferBytes(ciphertext);

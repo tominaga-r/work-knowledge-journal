@@ -285,7 +285,7 @@ export function InquiryCreatePage() {
       nextAction: undefined,
     }));
     setImportMessage(
-      `「${savedTitle}」を保存しました。\n次の候補「${nextEntry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
+      `「${savedTitle}」を保存しました。\n次の候補「${nextEntry.title}」を表示しています。`,
     );
     scrollToImportSection();
   }

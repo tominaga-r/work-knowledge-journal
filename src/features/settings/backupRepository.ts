@@ -297,22 +297,22 @@ export function validateDatabaseBackupJson(
     parsedValue = JSON.parse(jsonText);
   } catch {
     throw new Error(
-      "JSONとして読み込めませんでした。ファイル内容を確認してください。",
+      "バックアップファイルとして読み込めませんでした。ファイル内容を確認してください。",
     );
   }
 
   if (!isRecord(parsedValue)) {
-    throw new Error("バックアップJSONの形式が正しくありません。");
+    throw new Error("バックアップファイルの形式が正しくありません。");
   }
 
   if (parsedValue.schemaVersion !== 1) {
     throw new Error(
-      "対応していないバックアップ形式です。schemaVersion 1 のJSONを選択してください。",
+      "対応していないバックアップ形式です。このアプリで作成したバックアップファイルを選択してください。",
     );
   }
 
   if (parsedValue.appName !== "Work Knowledge Journal") {
-    throw new Error("このアプリのバックアップJSONではありません。");
+    throw new Error("このアプリのバックアップファイルではありません。");
   }
 
   if (typeof parsedValue.exportedAt !== "string" || !parsedValue.exportedAt) {

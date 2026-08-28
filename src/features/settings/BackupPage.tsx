@@ -2,9 +2,7 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
   AlertTriangle,
-  Clipboard,
   DatabaseBackup,
-  Download,
   FileCheck2,
   LockKeyhole,
   RefreshCw,
@@ -33,8 +31,8 @@ type ActionStatus = "idle" | "running" | "success" | "error";
 type RestoreSource = "plain" | "encrypted";
 
 const restoreSourceLabels: Record<RestoreSource, string> = {
-  plain: "通常ファイル",
-  encrypted: "暗号化ファイル",
+  plain: "通常バックアップファイル",
+  encrypted: "暗号化バックアップファイル",
 };
 
 function downloadJsonFile(json: string, fileName: string): void {
@@ -65,16 +63,12 @@ export function BackupPage() {
     null,
   );
   const [exportStatus, setExportStatus] = useState<ActionStatus>("idle");
-  const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
-  const [downloadStatus, setDownloadStatus] = useState<ActionStatus>("idle");
   const [encryptStatus, setEncryptStatus] = useState<ActionStatus>("idle");
   const [encryptedValidateStatus, setEncryptedValidateStatus] =
     useState<ActionStatus>("idle");
   const [validateStatus, setValidateStatus] = useState<ActionStatus>("idle");
   const [restoreStatus, setRestoreStatus] = useState<ActionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [copyErrorMessage, setCopyErrorMessage] = useState("");
-  const [downloadErrorMessage, setDownloadErrorMessage] = useState("");
   const [encryptErrorMessage, setEncryptErrorMessage] = useState("");
   const [encryptedValidateErrorMessage, setEncryptedValidateErrorMessage] =
     useState("");
@@ -90,10 +84,6 @@ export function BackupPage() {
   const [decryptPassword, setDecryptPassword] = useState("");
   const [hasConfirmedCurrentBackup, setHasConfirmedCurrentBackup] =
     useState(false);
-
-  const hasBackupJson = useMemo(() => {
-    return Boolean(backupResult?.json);
-  }, [backupResult]);
 
   const canCreateEncryptedBackup = useMemo(() => {
     return (
@@ -135,13 +125,10 @@ export function BackupPage() {
     setValidateErrorMessage("");
     setRestoreErrorMessage("");
   }
+
   async function handleCreateBackup() {
     setExportStatus("running");
-    setCopyStatus("idle");
-    setDownloadStatus("idle");
     setErrorMessage("");
-    setCopyErrorMessage("");
-    setDownloadErrorMessage("");
 
     try {
       const createdBackup = await createDatabaseBackup();
@@ -150,7 +137,6 @@ export function BackupPage() {
 
       setBackupResult(createdBackup);
       setExportStatus("success");
-      setDownloadStatus("success");
     } catch (error: unknown) {
       console.error(error);
       setErrorMessage(getErrorMessage(error));
@@ -197,42 +183,6 @@ export function BackupPage() {
       console.error(error);
       setEncryptErrorMessage(getErrorMessage(error));
       setEncryptStatus("error");
-    }
-  }
-
-  async function handleCopyBackupJson() {
-    if (!backupResult) {
-      return;
-    }
-
-    setCopyStatus("running");
-    setCopyErrorMessage("");
-
-    try {
-      await navigator.clipboard.writeText(backupResult.json);
-      setCopyStatus("success");
-    } catch (error: unknown) {
-      console.error(error);
-      setCopyErrorMessage(getErrorMessage(error));
-      setCopyStatus("error");
-    }
-  }
-
-  function handleDownloadBackupJson() {
-    if (!backupResult) {
-      return;
-    }
-
-    setDownloadStatus("running");
-    setDownloadErrorMessage("");
-
-    try {
-      downloadJsonFile(backupResult.json, backupResult.fileName);
-      setDownloadStatus("success");
-    } catch (error: unknown) {
-      console.error(error);
-      setDownloadErrorMessage(getErrorMessage(error));
-      setDownloadStatus("error");
     }
   }
 
@@ -344,15 +294,15 @@ export function BackupPage() {
           設定・バックアップ
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          現在のナレッジ、問い合わせメモ、分類、タグ、関連リンク、月次振り返りをJSON形式で出力・検証・復元します。
+          現在のナレッジ、問い合わせメモ、分類、タグ、関連リンク、月次振り返りをバックアップファイルとして保存・検証・復元します。
         </p>
       </div>
 
       <div className="space-y-6">
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-800">
-          <p className="font-semibold">バックアップJSONの取り扱い注意</p>
+          <p className="font-semibold">バックアップファイルの取り扱い注意</p>
           <p className="mt-2">
-            バックアップJSONには登録済みのナレッジ、問い合わせメモ、月次振り返りの本文が含まれます。
+            バックアップファイルには、登録済みのナレッジ、問い合わせメモ、月次振り返りの本文が含まれます。
             社外秘情報や個人情報を含めないよう注意してください。
           </p>
         </section>
@@ -363,11 +313,11 @@ export function BackupPage() {
               <div className="flex items-center gap-2">
                 <DatabaseBackup size={20} className="text-slate-700" />
                 <h2 className="text-lg font-bold text-slate-900">
-                  JSONバックアップ
+                  通常バックアップ
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                現在のデータをJSONファイルとして保存します。ボタンを押すと、バックアップJSONを作成してそのままファイル保存します。
+                現在のデータをバックアップファイルとして保存します。別のPCへ移すときや、後で復元したいときに使用します。
               </p>
             </div>
 
@@ -387,7 +337,7 @@ export function BackupPage() {
           {exportStatus === "success" && backupResult && (
             <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
               <p className="font-semibold">
-                バックアップJSONを作成し、ファイル保存しました。
+                バックアップファイルを作成し、保存しました。
               </p>
               <p className="mt-1 break-all">
                 ファイル名: {backupResult.fileName}
@@ -427,14 +377,14 @@ export function BackupPage() {
           </div>
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            パスワードを設定して、バックアップJSONを暗号化したファイルとして保存します。
+            パスワードを設定して、暗号化したバックアップファイルを保存します。
             持ち出しや共有時のリスクを下げたい場合に使用します。
           </p>
 
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
             <p className="font-semibold">暗号化バックアップの注意</p>
             <p className="mt-2">
-              パスワードを忘れると、暗号化バックアップは復号できません。
+              パスワードを忘れると、暗号化バックアップは復元できません。
               また、この機能はバックアップファイルを暗号化するものであり、端末内のSQLiteデータベース自体を暗号化するものではありません。
             </p>
           </div>
@@ -500,7 +450,7 @@ export function BackupPage() {
           {encryptStatus === "success" && (
             <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
               <p className="font-semibold">
-                暗号化バックアップを作成し、ファイル保存しました。
+                暗号化バックアップファイルを作成し、保存しました。
               </p>
               <p className="mt-1 break-all">ファイル名: {encryptedFileName}</p>
             </div>
@@ -517,74 +467,6 @@ export function BackupPage() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                バックアップJSONの内容
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                作成した通常バックアップJSONの内容を確認できます。必要に応じてコピーや再保存もできます。
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => void handleCopyBackupJson()}
-                disabled={!hasBackupJson || copyStatus === "running"}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Clipboard size={16} />
-                {copyStatus === "running" ? "コピー中..." : "コピー"}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDownloadBackupJson}
-                disabled={!hasBackupJson || downloadStatus === "running"}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Download size={16} />
-                {downloadStatus === "running"
-                  ? "保存中..."
-                  : "ファイルを再保存"}
-              </button>
-            </div>
-          </div>
-
-          {copyStatus === "success" && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-              バックアップJSONをクリップボードにコピーしました。
-            </div>
-          )}
-
-          {copyStatus === "error" && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <p className="font-semibold">コピーに失敗しました。</p>
-              <p className="mt-1 break-all">{copyErrorMessage}</p>
-            </div>
-          )}
-
-          {downloadStatus === "success" && exportStatus !== "success" && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-              バックアップJSONをファイルとして保存しました。
-            </div>
-          )}
-
-          {downloadStatus === "error" && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <p className="font-semibold">ファイル保存に失敗しました。</p>
-              <p className="mt-1 break-all">{downloadErrorMessage}</p>
-            </div>
-          )}
-
-          <pre className="mt-5 max-h-130 overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-950 p-5 text-sm leading-6 text-slate-100">
-            {backupResult?.json ||
-              "まだ通常バックアップJSONは作成されていません。"}
-          </pre>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <ShieldCheck size={20} className="text-slate-700" />
             <h2 className="text-lg font-bold text-slate-900">
@@ -592,21 +474,21 @@ export function BackupPage() {
             </h2>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            通常JSONまたは暗号化JSONを読み込み、このアプリのバックアップとして使える形式か確認します。
+            保存済みのバックアップファイルを読み込み、このアプリで復元できる形式か確認します。
           </p>
 
           <div className="mt-5 grid gap-4 xl:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <h3 className="text-base font-bold text-slate-900">
-                通常JSONから復元
+                通常バックアップから復元
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                平文のバックアップJSONを選択します。
+                通常のバックアップファイル（.json）を選択します。
               </p>
 
               <label className="mt-4 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <FileCheck2 size={16} />
-                通常JSONを選択
+                バックアップファイルを選択
                 <input
                   type="file"
                   accept="application/json,.json"
@@ -624,10 +506,10 @@ export function BackupPage() {
 
             <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <h3 className="text-base font-bold text-slate-900">
-                暗号化JSONから復元
+                暗号化バックアップから復元
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                暗号化バックアップJSONと、作成時に設定したパスワードを使って復号します。
+                暗号化バックアップファイル（.json）と、作成時に設定したパスワードを使って復元準備を行います。
               </p>
 
               <div className="mt-4">
@@ -635,7 +517,7 @@ export function BackupPage() {
                   htmlFor="backup-decrypt-password"
                   className="text-sm font-semibold text-slate-700"
                 >
-                  復号パスワード
+                  復元用パスワード
                 </label>
                 <input
                   id="backup-decrypt-password"
@@ -659,7 +541,7 @@ export function BackupPage() {
                 }
               >
                 <LockKeyhole size={16} />
-                暗号化JSONを選択
+                暗号化バックアップファイルを選択
                 <input
                   type="file"
                   accept="application/json,.json"
@@ -679,14 +561,14 @@ export function BackupPage() {
 
               {encryptedValidateStatus === "success" && (
                 <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  暗号化バックアップを復号し、検証しました。
+                  暗号化バックアップファイルを確認しました。
                 </div>
               )}
 
               {encryptedValidateStatus === "error" && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   <p className="font-semibold">
-                    暗号化バックアップの復号・検証に失敗しました。
+                    暗号化バックアップファイルの確認に失敗しました。
                   </p>
                   <p className="mt-1 break-all">
                     {encryptedValidateErrorMessage}
@@ -698,7 +580,7 @@ export function BackupPage() {
 
           {validateStatus === "running" && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              バックアップJSONを検証しています...
+              バックアップファイルを確認しています...
             </div>
           )}
 
@@ -706,7 +588,7 @@ export function BackupPage() {
             <div className="mt-5 space-y-4">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
                 <p className="font-semibold">
-                  バックアップJSONは有効な形式です。
+                  バックアップファイルを確認しました。
                 </p>
                 <p className="mt-1">
                   作成日時: {validationResult.summary.exportedAt}
@@ -719,7 +601,7 @@ export function BackupPage() {
                     復元元: {restoreSourceLabels[restoreSource]}
                   </p>
                   <p className="mt-1 text-slate-500">
-                    選択した{restoreSourceLabels[restoreSource]}を検証済みです。
+                    選択した{restoreSourceLabels[restoreSource]}を確認済みです。
                   </p>
                 </div>
               )}
@@ -740,8 +622,8 @@ export function BackupPage() {
                   復元プレビュー
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  現在のDB件数と、選択したバックアップJSON内の件数を比較します。
-                  復元を実行すると、現在のDB内容はバックアップJSONの内容で置き換えられます。
+                  現在のデータ件数と、選択したバックアップファイル内の件数を比較します。
+                  復元を実行すると、現在のデータはバックアップファイルの内容で置き換えられます。
                 </p>
 
                 {currentSummary ? (
@@ -751,7 +633,7 @@ export function BackupPage() {
                   />
                 ) : (
                   <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                    現在のDB件数を確認できませんでした。
+                    現在のデータ件数を確認できませんでした。
                   </div>
                 )}
               </section>
@@ -765,8 +647,8 @@ export function BackupPage() {
                   <div>
                     <p className="font-semibold">復元前の確認</p>
                     <p className="mt-2">
-                      復元を実行すると、現在のDB内容は選択したバックアップJSONの内容で置き換えられます。
-                      必ず現在のDBもバックアップしてから実行してください。
+                      復元を実行すると、現在のデータは選択したバックアップファイルの内容で置き換えられます。
+                      必ず現在のデータもバックアップしてから実行してください。
                     </p>
                   </div>
                 </div>
@@ -781,7 +663,7 @@ export function BackupPage() {
                     className="mt-1 h-4 w-4 rounded border-slate-300"
                   />
                   <span className="font-semibold">
-                    現在のDBバックアップを作成・保存済みです
+                    現在のデータをバックアップ済みです
                   </span>
                 </label>
 
@@ -803,7 +685,7 @@ export function BackupPage() {
               {restoreStatus === "success" && restoreResult && (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
                   <p className="font-semibold">
-                    バックアップJSONから復元しました。
+                    バックアップファイルから復元しました。
                   </p>
                   <p className="mt-1">復元日時: {restoreResult.restoredAt}</p>
                 </div>
@@ -822,7 +704,7 @@ export function BackupPage() {
             encryptedValidateStatus !== "error" && (
               <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                 <p className="font-semibold">
-                  バックアップJSONの検証に失敗しました。
+                  バックアップファイルの確認に失敗しました。
                 </p>
                 <p className="mt-1 break-all">{validateErrorMessage}</p>
               </div>
@@ -870,7 +752,7 @@ function BackupComparisonGrid({
         <thead className="bg-slate-100 text-left text-xs font-semibold text-slate-500">
           <tr>
             <th className="px-4 py-3">対象</th>
-            <th className="px-4 py-3 text-right">現在のDB</th>
+            <th className="px-4 py-3 text-right">現在のデータ</th>
             <th className="px-4 py-3 text-right">バックアップ</th>
           </tr>
         </thead>
