@@ -193,7 +193,7 @@ export function KnowledgeCreatePage() {
       setImportFileName(importedFile.fileName);
       setImportEntries(importedFile.entries);
       setImportMessage(
-        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。候補を選んでフォームに反映してください。`,
+        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。候補を選んでフォームに表示してください。`,
       );
     } catch (error: unknown) {
       console.error(error);
@@ -218,7 +218,7 @@ export function KnowledgeCreatePage() {
 
     setActiveImportEntryId(entry.id);
     setImportMessage(
-      `「${entry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
+      `「${entry.title}」をフォームに表示しました。内容を確認してから保存してください。`,
     );
     setImportErrorMessage("");
 
@@ -351,7 +351,7 @@ export function KnowledgeCreatePage() {
             <p className="font-semibold">入力前の注意</p>
             <p className="mt-1">
               個人名や社外秘の内容は避けて記録してください。
-              あとで共有・見返しやすいように、sourceは内容の由来に近いものを選択してください。
+              あとで共有・見返しやすいように、情報元は内容の由来に近いものを選択してください。
             </p>
           </div>
         </div>
@@ -429,7 +429,7 @@ export function KnowledgeCreatePage() {
                           候補 {index + 1}
                           {isActive && (
                             <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[11px] text-white">
-                              反映中
+                              表示中
                             </span>
                           )}
                         </p>
@@ -447,7 +447,7 @@ export function KnowledgeCreatePage() {
                         onClick={() => applyImportEntryToForm(entry)}
                         className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
                       >
-                        フォームに反映
+                        フォームに表示
                       </button>
                     </div>
                   </div>
@@ -631,7 +631,7 @@ export function KnowledgeCreatePage() {
                 htmlFor="knowledge-source"
                 className="text-sm font-semibold text-slate-900"
               >
-                source
+                情報元
               </label>
               <select
                 id="knowledge-source"

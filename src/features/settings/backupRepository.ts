@@ -3,6 +3,9 @@ import { nowIsoString } from "../../lib/utils/date";
 
 type BackupRow = Record<string, unknown>;
 
+const INVALID_BACKUP_FILE_CONTENT_MESSAGE =
+  "バックアップファイルの内容が正しくありません。このアプリで作成したバックアップファイルを選択してください。";
+
 const backupTableNames = [
   "knowledge_categories",
   "inquiry_categories",
@@ -81,11 +84,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function createInvalidBackupContentError(): Error {
+  return new Error(INVALID_BACKUP_FILE_CONTENT_MESSAGE);
+}
+
 function asText(row: BackupRow, key: string, tableName: string): string {
   const value = row[key];
 
   if (typeof value !== "string") {
-    throw new Error(`${tableName}.${key} が文字列ではありません。`);
+    console.error(`${tableName}.${key} が文字列ではありません。`, value);
+    throw createInvalidBackupContentError();
   }
 
   return value;
@@ -103,7 +111,11 @@ function asOptionalText(
   }
 
   if (typeof value !== "string") {
-    throw new Error(`${tableName}.${key} が文字列またはnullではありません。`);
+    console.error(
+      `${tableName}.${key} が文字列またはnullではありません。`,
+      value,
+    );
+    throw createInvalidBackupContentError();
   }
 
   return value;
@@ -113,7 +125,8 @@ function asInteger(row: BackupRow, key: string, tableName: string): number {
   const value = row[key];
 
   if (typeof value !== "number" || !Number.isInteger(value)) {
-    throw new Error(`${tableName}.${key} が整数ではありません。`);
+    console.error(`${tableName}.${key} が整数ではありません。`, value);
+    throw createInvalidBackupContentError();
   }
 
   return value;
@@ -302,7 +315,7 @@ export function validateDatabaseBackupJson(
   }
 
   if (!isRecord(parsedValue)) {
-    throw new Error("バックアップファイルの形式が正しくありません。");
+    throw new Error("このアプリのバックアップファイルではありません。");
   }
 
   if (parsedValue.schemaVersion !== 1) {
@@ -316,11 +329,11 @@ export function validateDatabaseBackupJson(
   }
 
   if (typeof parsedValue.exportedAt !== "string" || !parsedValue.exportedAt) {
-    throw new Error("バックアップ作成日時 exportedAt が正しくありません。");
+    throw createInvalidBackupContentError();
   }
 
   if (!isRecord(parsedValue.tables)) {
-    throw new Error("tables が見つからないか、形式が正しくありません。");
+    throw createInvalidBackupContentError();
   }
 
   const warnings: string[] = [];
@@ -329,15 +342,15 @@ export function validateDatabaseBackupJson(
     const tableRows = parsedValue.tables[tableName];
 
     if (!Array.isArray(tableRows)) {
-      throw new Error(
-        `${tableName} が見つからないか、配列形式ではありません。`,
-      );
+      console.error(`${tableName} が見つからないか、配列形式ではありません。`);
+      throw createInvalidBackupContentError();
     }
 
     const hasInvalidRow = tableRows.some((row) => !isRecord(row));
 
     if (hasInvalidRow) {
-      throw new Error(`${tableName} に不正な行データが含まれています。`);
+      console.error(`${tableName} に不正な行データが含まれています。`);
+      throw createInvalidBackupContentError();
     }
   }
 
@@ -347,7 +360,9 @@ export function validateDatabaseBackupJson(
 
   if (unknownTableNames.length > 0) {
     warnings.push(
-      `未対応のテーブルが含まれています: ${unknownTableNames.join(", ")}`,
+      `このバージョンでは使用しないデータが含まれています: ${unknownTableNames.join(
+        ", ",
+      )}`,
     );
   }
 

@@ -530,7 +530,7 @@ export function KnowledgeEditPage() {
                 htmlFor="knowledge-edit-source"
                 className="text-sm font-semibold text-slate-900"
               >
-                source
+                情報元
               </label>
               <select
                 id="knowledge-edit-source"
@@ -561,11 +561,6 @@ export function KnowledgeEditPage() {
 
           <div>
             <p className="text-sm font-semibold text-slate-900">共通タグ</p>
-            <p className="mt-1 text-xs text-slate-500">
-              既存共通タグから選択します。共通タグの追加・編集・削除はStep
-              5で実装します。
-            </p>
-
             {tags.length === 0 ? (
               <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
                 登録済み共通タグがありません。

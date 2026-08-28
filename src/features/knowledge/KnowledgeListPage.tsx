@@ -344,7 +344,7 @@ export function KnowledgeListPage() {
                 htmlFor="knowledge-source-filter"
                 className="text-sm font-semibold text-slate-900"
               >
-                source
+                情報元
               </label>
               <select
                 id="knowledge-source-filter"

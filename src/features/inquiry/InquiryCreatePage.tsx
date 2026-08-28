@@ -197,7 +197,7 @@ export function InquiryCreatePage() {
       setImportFileName(importedFile.fileName);
       setImportEntries(importedFile.entries);
       setImportMessage(
-        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。候補を選んでフォームに反映してください。`,
+        `${importedFile.fileName} から ${importedFile.entries.length}件の取り込み候補を作成しました。候補を選んでフォームに表示してください。`,
       );
     } catch (error: unknown) {
       console.error(error);
@@ -226,7 +226,7 @@ export function InquiryCreatePage() {
 
     setActiveImportEntryId(entry.id);
     setImportMessage(
-      `「${entry.title}」をフォームに反映しました。内容を確認してから保存してください。`,
+      `「${entry.title}」をフォームに表示しました。内容を確認してから保存してください。`,
     );
     setImportErrorMessage("");
 
@@ -444,7 +444,7 @@ export function InquiryCreatePage() {
                           候補 {index + 1}
                           {isActive && (
                             <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[11px] text-white">
-                              反映中
+                              表示中
                             </span>
                           )}
                         </p>
@@ -462,7 +462,7 @@ export function InquiryCreatePage() {
                         onClick={() => applyImportEntryToForm(entry)}
                         className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
                       >
-                        フォームに反映
+                        フォームに表示
                       </button>
                     </div>
                   </div>
@@ -665,7 +665,7 @@ export function InquiryCreatePage() {
                 htmlFor="inquiry-source"
                 className="text-sm font-semibold text-slate-900"
               >
-                source
+                情報元
               </label>
               <select
                 id="inquiry-source"

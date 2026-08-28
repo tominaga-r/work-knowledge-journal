@@ -4,6 +4,12 @@ const ENCRYPTED_BACKUP_FILE_TYPE = "WorkKnowledgeJournalEncryptedBackup";
 const ENCRYPTED_BACKUP_VERSION = 1;
 const PBKDF2_ITERATIONS = 210000;
 
+const INVALID_ENCRYPTED_BACKUP_FILE_MESSAGE =
+  "暗号化バックアップファイルの形式が正しくありません。このアプリで作成した暗号化バックアップファイルを選択してください。";
+
+const UNSUPPORTED_ENCRYPTED_BACKUP_FILE_MESSAGE =
+  "対応していない暗号化バックアップ形式です。このアプリで作成した暗号化バックアップファイルを選択してください。";
+
 export type EncryptedBackupData = {
   fileType: typeof ENCRYPTED_BACKUP_FILE_TYPE;
   version: typeof ENCRYPTED_BACKUP_VERSION;
@@ -53,12 +59,14 @@ function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
   try {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
+
     for (let index = 0; index < binary.length; index += 1) {
       bytes[index] = binary.charCodeAt(index);
     }
+
     return bytes;
   } catch {
-    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
+    throw new Error(INVALID_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 }
 
@@ -174,9 +182,7 @@ export function parseEncryptedBackupJson(
   }
 
   if (parsedValue.version !== ENCRYPTED_BACKUP_VERSION) {
-    throw new Error(
-      "対応していない暗号化バックアップ形式です。このアプリで作成した暗号化バックアップファイルを選択してください。",
-    );
+    throw new Error(UNSUPPORTED_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (parsedValue.appName !== "Work Knowledge Journal") {
@@ -184,35 +190,35 @@ export function parseEncryptedBackupJson(
   }
 
   if (parsedValue.algorithm !== "AES-GCM") {
-    throw new Error("対応していない暗号化方式です。");
+    throw new Error(UNSUPPORTED_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (parsedValue.kdf !== "PBKDF2") {
-    throw new Error("対応していない鍵導出方式です。");
+    throw new Error(UNSUPPORTED_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (parsedValue.hash !== "SHA-256") {
-    throw new Error("対応していないハッシュ方式です。");
+    throw new Error(UNSUPPORTED_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (parsedValue.iterations !== PBKDF2_ITERATIONS) {
-    throw new Error("対応していない暗号化バックアップ設定です。");
+    throw new Error(UNSUPPORTED_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (typeof parsedValue.encryptedAt !== "string" || !parsedValue.encryptedAt) {
-    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
+    throw new Error(INVALID_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (typeof parsedValue.salt !== "string" || !parsedValue.salt) {
-    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
+    throw new Error(INVALID_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (typeof parsedValue.iv !== "string" || !parsedValue.iv) {
-    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
+    throw new Error(INVALID_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   if (typeof parsedValue.ciphertext !== "string" || !parsedValue.ciphertext) {
-    throw new Error("暗号化バックアップファイルの形式が正しくありません。");
+    throw new Error(INVALID_ENCRYPTED_BACKUP_FILE_MESSAGE);
   }
 
   return parsedValue as EncryptedBackupData;
@@ -246,7 +252,7 @@ export async function decryptBackupJson(
     return new TextDecoder().decode(decryptedBuffer);
   } catch {
     throw new Error(
-      "暗号化バックアップの復号に失敗しました。パスワードまたはファイル内容を確認してください。",
+      "暗号化バックアップの復元準備に失敗しました。パスワードまたはファイル内容を確認してください。",
     );
   }
 }

@@ -37,7 +37,6 @@ export function DashboardPage() {
     }
 
     const [year, month] = overview.targetMonth.split("-");
-
     if (!year || !month) {
       return overview.targetMonth;
     }
@@ -90,29 +89,27 @@ export function DashboardPage() {
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2">
           <Database size={20} className="text-slate-700" />
-          <p className="text-sm font-semibold text-slate-900">
-            データベース状態
-          </p>
+          <p className="text-sm font-semibold text-slate-900">データ準備</p>
         </div>
 
         {status === "checking" && (
           <p className="mt-2 text-sm text-slate-500">
-            SQLiteデータベースを初期化しています...
+            アプリで使用するデータを準備しています...
           </p>
         )}
 
         {status === "ready" && (
           <div className="mt-2 space-y-1 text-sm text-emerald-700">
-            <p>SQLiteデータベースの初期化が完了しました。</p>
+            <p>データの準備が完了しました。</p>
             {sampleDataCreated && (
-              <p>初回確認用のサンプルデータを投入しました。</p>
+              <p>初回確認用のサンプルデータを追加しました。</p>
             )}
           </div>
         )}
 
         {status === "error" && (
           <div className="mt-2 text-sm text-red-700">
-            <p>SQLiteデータベースの初期化に失敗しました。</p>
+            <p>データの準備に失敗しました。</p>
             <p className="mt-1 break-all">{errorMessage}</p>
           </div>
         )}
@@ -286,6 +283,7 @@ function RecentKnowledgeSection({ items }: { items: RecentKnowledgeItem[] }) {
             最近追加されたナレッジを表示します。
           </p>
         </div>
+
         <Link
           to="/knowledge"
           className="text-sm font-semibold text-slate-700 hover:text-slate-900"
@@ -331,6 +329,7 @@ function RecentInquirySection({ items }: { items: RecentInquiryNote[] }) {
             最近追加された問い合わせメモを表示します。
           </p>
         </div>
+
         <Link
           to="/inquiries"
           className="text-sm font-semibold text-slate-700 hover:text-slate-900"
