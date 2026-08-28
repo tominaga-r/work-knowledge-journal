@@ -270,8 +270,9 @@ export function KnowledgeCreatePage() {
       title: undefined,
       content: undefined,
     }));
-    setImportMessage(`「${savedTitle}」を保存しました。\n次の候補「${nextEntry.title}」を表示しています
-。`);
+    setImportMessage(
+      `「${savedTitle}」を保存しました。\n次の候補「${nextEntry.title}」を表示しました。`,
+    );
     scrollToImportSection();
   }
 
