@@ -1,4 +1,5 @@
 // src/App.tsx
+import { useEffect, useState } from "react";
 import {
   BookOpen,
   CalendarCheck,
@@ -29,6 +30,10 @@ import { InquiryDetailPage } from "./features/inquiry/InquiryDetailPage";
 import { InquiryEditPage } from "./features/inquiry/InquiryEditPage";
 import { MonthlyReviewPage } from "./features/review/MonthlyReviewPage";
 import { BackupPage } from "./features/settings/BackupPage";
+import { migrateDatabase } from "./lib/db/migrate";
+import { getErrorMessage } from "./lib/utils/error";
+
+type AppStatus = "checking" | "ready" | "error";
 
 const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
@@ -147,58 +152,104 @@ function MobileNavigation() {
   );
 }
 
-export default function App() {
+function AppRoutes() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen overflow-x-hidden bg-slate-100 text-slate-900">
-        <div className="flex min-h-screen min-w-0">
-          <Sidebar />
+    <Routes>
+      <Route path="/" element={<DashboardPage />} />
+      <Route path="/knowledge" element={<KnowledgeListPage />} />
+      <Route path="/knowledge/new" element={<KnowledgeCreatePage />} />
+      <Route path="/knowledge/:knowledgeId" element={<KnowledgeDetailPage />} />
+      <Route
+        path="/knowledge/:knowledgeId/edit"
+        element={<KnowledgeEditPage />}
+      />
+      <Route path="/inquiries" element={<InquiryListPage />} />
+      <Route path="/inquiries/new" element={<InquiryCreatePage />} />
+      <Route path="/inquiries/:inquiryId" element={<InquiryDetailPage />} />
+      <Route path="/inquiries/:inquiryId/edit" element={<InquiryEditPage />} />
+      <Route path="/monthly-reviews" element={<MonthlyReviewPage />} />
+      <Route path="/taxonomy" element={<TaxonomyPage />} />
+      <Route path="/settings" element={<BackupPage />} />
+    </Routes>
+  );
+}
 
-          <div className="flex min-w-0 flex-1 flex-col">
-            <MobileNavigation />
+function AppShell({
+  status,
+  errorMessage,
+}: {
+  status: AppStatus;
+  errorMessage: string;
+}) {
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-slate-100 text-slate-900">
+      <div className="flex min-h-screen min-w-0">
+        <Sidebar />
 
-            <main className="min-w-0 flex-1 p-4 md:p-8">
-              <div className="mx-auto w-full max-w-6xl min-w-0">
-                <Routes>
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/knowledge" element={<KnowledgeListPage />} />
-                  <Route
-                    path="/knowledge/new"
-                    element={<KnowledgeCreatePage />}
-                  />
-                  <Route
-                    path="/knowledge/:knowledgeId"
-                    element={<KnowledgeDetailPage />}
-                  />
-                  <Route
-                    path="/knowledge/:knowledgeId/edit"
-                    element={<KnowledgeEditPage />}
-                  />
-                  <Route path="/inquiries" element={<InquiryListPage />} />
-                  <Route
-                    path="/inquiries/new"
-                    element={<InquiryCreatePage />}
-                  />
-                  <Route
-                    path="/inquiries/:inquiryId"
-                    element={<InquiryDetailPage />}
-                  />
-                  <Route
-                    path="/inquiries/:inquiryId/edit"
-                    element={<InquiryEditPage />}
-                  />
-                  <Route
-                    path="/monthly-reviews"
-                    element={<MonthlyReviewPage />}
-                  />
-                  <Route path="/taxonomy" element={<TaxonomyPage />} />
-                  <Route path="/settings" element={<BackupPage />} />
-                </Routes>
-              </div>
-            </main>
-          </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <MobileNavigation />
+
+          <main className="min-w-0 flex-1 p-4 md:p-8">
+            <div className="mx-auto w-full max-w-6xl min-w-0">
+              {status === "checking" && (
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
+                  読み込み中...
+                </section>
+              )}
+
+              {status === "error" && (
+                <section className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+                  <p className="font-semibold">アプリの準備に失敗しました。</p>
+                  <p className="mt-1 break-all">{errorMessage}</p>
+                </section>
+              )}
+
+              {status === "ready" && <AppRoutes />}
+            </div>
+          </main>
         </div>
       </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [status, setStatus] = useState<AppStatus>("checking");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initializeApp() {
+      setStatus("checking");
+      setErrorMessage("");
+
+      await migrateDatabase();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setStatus("ready");
+    }
+
+    initializeApp().catch((error: unknown) => {
+      console.error(error);
+
+      if (isMounted) {
+        setErrorMessage(getErrorMessage(error));
+        setStatus("error");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <AppShell status={status} errorMessage={errorMessage} />
     </BrowserRouter>
   );
 }

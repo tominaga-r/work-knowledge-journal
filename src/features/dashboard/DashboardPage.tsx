@@ -8,8 +8,6 @@ import {
   Tags,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { migrateDatabase } from "../../lib/db/migrate";
-import { initializeSampleData } from "../../lib/db/sampleData";
 import { getErrorMessage } from "../../lib/utils/error";
 import { formatDateTime } from "../../lib/utils/format";
 import {
@@ -42,12 +40,9 @@ export function DashboardPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function initializeDashboard() {
+    async function loadDashboard() {
       setStatus("checking");
       setErrorMessage("");
-
-      await migrateDatabase();
-      await initializeSampleData();
 
       const loadedOverview = await getDashboardOverview();
 
@@ -59,7 +54,7 @@ export function DashboardPage() {
       setStatus("ready");
     }
 
-    initializeDashboard().catch((error: unknown) => {
+    loadDashboard().catch((error: unknown) => {
       console.error(error);
 
       if (isMounted) {
@@ -88,7 +83,9 @@ export function DashboardPage() {
 
       {status === "error" && (
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          <p className="font-semibold">データの準備に失敗しました。</p>
+          <p className="font-semibold">
+            ダッシュボードの読み込みに失敗しました。
+          </p>
           <p className="mt-1 break-all">{errorMessage}</p>
         </section>
       )}
