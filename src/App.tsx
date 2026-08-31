@@ -2,7 +2,9 @@
 import {
   BookOpen,
   CalendarCheck,
+  FilePlus2,
   Home,
+  MessageSquarePlus,
   MessageSquareText,
   Settings,
   Tags,
@@ -35,6 +37,15 @@ const navItems = [
   { to: "/monthly-reviews", label: "月次振り返り", icon: CalendarCheck },
   { to: "/taxonomy", label: "分類管理", icon: Tags },
   { to: "/settings", label: "設定", icon: Settings },
+];
+
+const quickActionItems = [
+  { to: "/knowledge/new", label: "ナレッジを追加", icon: FilePlus2 },
+  {
+    to: "/inquiries/new",
+    label: "問い合わせメモを追加",
+    icon: MessageSquarePlus,
+  },
 ];
 
 function isActivePath(pathname: string, to: string): boolean {
@@ -73,6 +84,29 @@ function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="mt-8 border-t border-slate-200 pt-5">
+        <p className="px-3 text-xs font-bold uppercase tracking-wide text-slate-400">
+          クイック操作
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {quickActionItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex items-center gap-3 rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 hover:text-slate-900"
+              >
+                <Icon size={18} className="shrink-0" />
+                <span className="min-w-0 truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </aside>
   );
 }

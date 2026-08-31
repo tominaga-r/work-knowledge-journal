@@ -3,11 +3,7 @@ import type { ReactNode } from "react";
 import {
   BookOpen,
   CalendarCheck,
-  Database,
-  FilePlus2,
-  MessageSquarePlus,
   MessageSquareText,
-  Settings,
   Star,
   Tags,
 } from "lucide-react";
@@ -28,7 +24,6 @@ type DashboardStatus = "checking" | "ready" | "error";
 export function DashboardPage() {
   const [status, setStatus] = useState<DashboardStatus>("checking");
   const [errorMessage, setErrorMessage] = useState("");
-  const [sampleDataCreated, setSampleDataCreated] = useState(false);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   const monthLabel = useMemo(() => {
@@ -52,15 +47,14 @@ export function DashboardPage() {
       setErrorMessage("");
 
       await migrateDatabase();
+      await initializeSampleData();
 
-      const created = await initializeSampleData();
       const loadedOverview = await getDashboardOverview();
 
       if (!isMounted) {
         return;
       }
 
-      setSampleDataCreated(created);
       setOverview(loadedOverview);
       setStatus("ready");
     }
@@ -86,34 +80,18 @@ export function DashboardPage() {
         description="今月の登録状況、最近の記録、月次振り返りの状態を確認します。"
       />
 
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Database size={20} className="text-slate-700" />
-          <p className="text-sm font-semibold text-slate-900">データ準備</p>
-        </div>
+      {status === "checking" && (
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
+          読み込み中...
+        </section>
+      )}
 
-        {status === "checking" && (
-          <p className="mt-2 text-sm text-slate-500">
-            アプリで使用するデータを準備しています...
-          </p>
-        )}
-
-        {status === "ready" && (
-          <div className="mt-2 space-y-1 text-sm text-emerald-700">
-            <p>データの準備が完了しました。</p>
-            {sampleDataCreated && (
-              <p>初回確認用のサンプルデータを追加しました。</p>
-            )}
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="mt-2 text-sm text-red-700">
-            <p>データの準備に失敗しました。</p>
-            <p className="mt-1 break-all">{errorMessage}</p>
-          </div>
-        )}
-      </section>
+      {status === "error" && (
+        <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          <p className="font-semibold">データの準備に失敗しました。</p>
+          <p className="mt-1 break-all">{errorMessage}</p>
+        </section>
+      )}
 
       {status === "ready" && overview && (
         <div className="space-y-6">
@@ -160,36 +138,6 @@ export function DashboardPage() {
           <section className="grid gap-6 xl:grid-cols-2">
             <RecentKnowledgeSection items={overview.recentKnowledgeItems} />
             <RecentInquirySection items={overview.recentInquiryNotes} />
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">クイック操作</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              よく使う画面へすぐ移動できます。
-            </p>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <ShortcutLink
-                to="/knowledge/new"
-                icon={<FilePlus2 size={18} />}
-                label="ナレッジを追加"
-              />
-              <ShortcutLink
-                to="/inquiries/new"
-                icon={<MessageSquarePlus size={18} />}
-                label="問い合わせメモを追加"
-              />
-              <ShortcutLink
-                to="/monthly-reviews"
-                icon={<CalendarCheck size={18} />}
-                label="月次振り返り"
-              />
-              <ShortcutLink
-                to="/settings"
-                icon={<Settings size={18} />}
-                label="バックアップ"
-              />
-            </div>
           </section>
 
           <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
@@ -368,26 +316,6 @@ function FavoriteBadge() {
     <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
       ★
     </span>
-  );
-}
-
-function ShortcutLink({
-  to,
-  icon,
-  label,
-}: {
-  to: string;
-  icon: ReactNode;
-  label: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-    >
-      {icon}
-      {label}
-    </Link>
   );
 }
 
