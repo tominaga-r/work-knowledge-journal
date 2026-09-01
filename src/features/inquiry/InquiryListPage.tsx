@@ -519,7 +519,7 @@ export function InquiryListPage() {
                     value={item.category_name ?? "未設定"}
                   />
                   <InfoRow
-                    label="source"
+                    label="情報元"
                     value={inquirySourceLabels[item.source]}
                   />
                   <InfoRow

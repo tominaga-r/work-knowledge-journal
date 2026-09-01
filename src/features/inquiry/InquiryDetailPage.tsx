@@ -565,7 +565,7 @@ export function InquiryDetailPage() {
               label="問い合わせ分類"
               value={item.category_name ?? "未設定"}
             />
-            <InfoRow label="source" value={inquirySourceLabels[item.source]} />
+            <InfoRow label="情報元" value={inquirySourceLabels[item.source]} />
             <InfoRow
               label="お気に入り"
               value={item.is_favorite === 1 ? "はい" : "いいえ"}
@@ -717,7 +717,7 @@ function LinkedKnowledgeCard({
           value={knowledge.category_name ?? "未設定"}
         />
         <MiniInfo
-          label="source"
+          label="情報元"
           value={knowledgeSourceLabels[knowledge.source]}
         />
       </div>
@@ -819,7 +819,7 @@ function SuggestedKnowledgeCard({
           value={knowledge.category_name ?? "未設定"}
         />
         <MiniInfo
-          label="source"
+          label="情報元"
           value={knowledgeSourceLabels[knowledge.source]}
         />
       </div>
@@ -921,7 +921,7 @@ function KeywordSuggestedKnowledgeCard({
           value={knowledge.category_name ?? "未設定"}
         />
         <MiniInfo
-          label="source"
+          label="情報元"
           value={knowledgeSourceLabels[knowledge.source]}
         />
       </div>
