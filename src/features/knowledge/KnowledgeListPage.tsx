@@ -4,6 +4,7 @@ import {
   KnowledgeListItem,
   SearchKnowledgeFilters,
   searchKnowledgeItems,
+  updateKnowledgeFavorite,
 } from "./knowledgeRepository";
 import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
 import {
@@ -90,6 +91,10 @@ export function KnowledgeListPage() {
   );
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [optionErrorMessage, setOptionErrorMessage] = useState("");
+  const [favoriteErrorMessage, setFavoriteErrorMessage] = useState("");
+  const [updatingFavoriteIds, setUpdatingFavoriteIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const hasRestoredScroll = useRef(false);
 
   useEffect(() => {
@@ -192,6 +197,44 @@ export function KnowledgeListPage() {
     });
   }
 
+  function setFavoriteUpdating(id: string, isUpdating: boolean) {
+    setUpdatingFavoriteIds((current) => {
+      const next = new Set(current);
+
+      if (isUpdating) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+
+      return next;
+    });
+  }
+
+  async function reloadKnowledgeItems() {
+    const knowledgeItems = await searchKnowledgeItems(
+      createSearchFilters(filters),
+    );
+    setItems(knowledgeItems);
+  }
+
+  async function handleToggleFavorite(item: KnowledgeListItem) {
+    const nextFavorite = item.is_favorite !== 1;
+
+    setFavoriteErrorMessage("");
+    setFavoriteUpdating(item.id, true);
+
+    try {
+      await updateKnowledgeFavorite(item.id, nextFavorite);
+      await reloadKnowledgeItems();
+    } catch (error: unknown) {
+      console.error(error);
+      setFavoriteErrorMessage(getErrorMessage(error));
+    } finally {
+      setFavoriteUpdating(item.id, false);
+    }
+  }
+
   const activeFilters = hasActiveFilters(filters);
 
   return (
@@ -223,6 +266,13 @@ export function KnowledgeListPage() {
             絞り込み条件の読み込みに失敗しました。
           </p>
           <p className="mt-1 break-all">{optionErrorMessage}</p>
+        </div>
+      )}
+
+      {favoriteErrorMessage && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">お気に入りの更新に失敗しました。</p>
+          <p className="mt-1 break-all">{favoriteErrorMessage}</p>
         </div>
       )}
 
@@ -466,12 +516,31 @@ export function KnowledgeListPage() {
                         {item.title}
                       </Link>
 
-                      {item.is_favorite === 1 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-800">
-                          <Star size={14} fill="currentColor" />
-                          お気に入り
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleFavorite(item)}
+                        disabled={updatingFavoriteIds.has(item.id)}
+                        className={
+                          item.is_favorite === 1
+                            ? "inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-800 transition hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            : "inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        }
+                        aria-label={
+                          item.is_favorite === 1
+                            ? "お気に入りを解除"
+                            : "お気に入りに追加"
+                        }
+                      >
+                        <Star
+                          size={14}
+                          fill={
+                            item.is_favorite === 1 ? "currentColor" : "none"
+                          }
+                        />
+                        {item.is_favorite === 1
+                          ? "お気に入り"
+                          : "お気に入りに追加"}
+                      </button>
                     </div>
 
                     <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -490,7 +559,7 @@ export function KnowledgeListPage() {
                   </span>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    source: {knowledgeSourceLabels[item.source]}
+                    情報元: {knowledgeSourceLabels[item.source]}
                   </span>
                 </div>
 

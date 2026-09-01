@@ -367,6 +367,35 @@ export async function updateInquiryNote(
   return item;
 }
 
+export async function updateInquiryFavorite(
+  id: string,
+  isFavorite: boolean,
+): Promise<void> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    throw new Error("問い合わせメモIDが不正です。");
+  }
+
+  const existingItem = await getInquiryNoteById(normalizedId);
+
+  if (!existingItem) {
+    throw new Error("更新対象の問い合わせメモが見つかりません。");
+  }
+
+  const db = await getDatabase();
+  const now = nowIsoString();
+
+  await db.execute(
+    `UPDATE inquiry_notes
+     SET
+       is_favorite = $1,
+       updated_at = $2
+     WHERE id = $3`,
+    [isFavorite ? 1 : 0, now, normalizedId],
+  );
+}
+
 export async function deleteInquiryNote(id: string): Promise<void> {
   const normalizedId = id.trim();
 

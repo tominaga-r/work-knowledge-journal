@@ -357,6 +357,35 @@ export async function updateKnowledgeItem(
   return item;
 }
 
+export async function updateKnowledgeFavorite(
+  id: string,
+  isFavorite: boolean,
+): Promise<void> {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    throw new Error("ナレッジIDが不正です。");
+  }
+
+  const existingItem = await getKnowledgeItemById(normalizedId);
+
+  if (!existingItem) {
+    throw new Error("更新対象のナレッジが見つかりません。");
+  }
+
+  const db = await getDatabase();
+  const now = nowIsoString();
+
+  await db.execute(
+    `UPDATE knowledge_items
+     SET
+       is_favorite = $1,
+       updated_at = $2
+     WHERE id = $3`,
+    [isFavorite ? 1 : 0, now, normalizedId],
+  );
+}
+
 export async function deleteKnowledgeItem(id: string): Promise<void> {
   const normalizedId = id.trim();
 

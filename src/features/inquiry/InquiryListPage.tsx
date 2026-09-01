@@ -9,6 +9,7 @@ import {
   InquiryListItem,
   SearchInquiryFilters,
   searchInquiryNotes,
+  updateInquiryFavorite,
 } from "./inquiryRepository";
 import { InquirySource, inquirySourceValues } from "./inquirySchema";
 import {
@@ -81,6 +82,10 @@ export function InquiryListPage() {
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [optionErrorMessage, setOptionErrorMessage] = useState("");
+  const [favoriteErrorMessage, setFavoriteErrorMessage] = useState("");
+  const [updatingFavoriteIds, setUpdatingFavoriteIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const hasRestoredScroll = useRef(false);
 
   useEffect(() => {
@@ -181,6 +186,42 @@ export function InquiryListPage() {
     });
   }
 
+  function setFavoriteUpdating(id: string, isUpdating: boolean) {
+    setUpdatingFavoriteIds((current) => {
+      const next = new Set(current);
+
+      if (isUpdating) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+
+      return next;
+    });
+  }
+
+  async function reloadInquiryNotes() {
+    const inquiryNotes = await searchInquiryNotes(createSearchFilters(filters));
+    setItems(inquiryNotes);
+  }
+
+  async function handleToggleFavorite(item: InquiryListItem) {
+    const nextFavorite = item.is_favorite !== 1;
+
+    setFavoriteErrorMessage("");
+    setFavoriteUpdating(item.id, true);
+
+    try {
+      await updateInquiryFavorite(item.id, nextFavorite);
+      await reloadInquiryNotes();
+    } catch (error: unknown) {
+      console.error(error);
+      setFavoriteErrorMessage(getErrorMessage(error));
+    } finally {
+      setFavoriteUpdating(item.id, false);
+    }
+  }
+
   const activeFilters = hasActiveFilters(filters);
 
   return (
@@ -208,6 +249,13 @@ export function InquiryListPage() {
             絞り込み条件の読み込みに失敗しました。
           </p>
           <p className="mt-1 break-all">{optionErrorMessage}</p>
+        </div>
+      )}
+
+      {favoriteErrorMessage && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">お気に入りの更新に失敗しました。</p>
+          <p className="mt-1 break-all">{favoriteErrorMessage}</p>
         </div>
       )}
 
@@ -428,12 +476,31 @@ export function InquiryListPage() {
                         {item.title}
                       </Link>
 
-                      {item.is_favorite === 1 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                          <Star size={13} />
-                          お気に入り
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleFavorite(item)}
+                        disabled={updatingFavoriteIds.has(item.id)}
+                        className={
+                          item.is_favorite === 1
+                            ? "inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            : "inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        }
+                        aria-label={
+                          item.is_favorite === 1
+                            ? "お気に入りを解除"
+                            : "お気に入りに追加"
+                        }
+                      >
+                        <Star
+                          size={13}
+                          fill={
+                            item.is_favorite === 1 ? "currentColor" : "none"
+                          }
+                        />
+                        {item.is_favorite === 1
+                          ? "お気に入り"
+                          : "お気に入りに追加"}
+                      </button>
                     </div>
 
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">

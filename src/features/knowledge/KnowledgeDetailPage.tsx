@@ -270,7 +270,7 @@ export function KnowledgeDetailPage() {
           </span>
 
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-            source: {knowledgeSourceLabels[item.source]}
+            情報元: {knowledgeSourceLabels[item.source]}
           </span>
         </div>
 
