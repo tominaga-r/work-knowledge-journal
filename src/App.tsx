@@ -8,6 +8,7 @@ import {
   MessageSquarePlus,
   MessageSquareText,
   Settings,
+  Star,
   Tags,
 } from "lucide-react";
 import {
@@ -19,6 +20,7 @@ import {
 } from "react-router-dom";
 import clsx from "clsx";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { FavoritesPage } from "./features/favorites/FavoritesPage";
 import { KnowledgeListPage } from "./features/knowledge/KnowledgeListPage";
 import { KnowledgeCreatePage } from "./features/knowledge/KnowledgeCreatePage";
 import { KnowledgeDetailPage } from "./features/knowledge/KnowledgeDetailPage";
@@ -39,6 +41,7 @@ const navItems = [
   { to: "/", label: "ダッシュボード", icon: Home },
   { to: "/knowledge", label: "ナレッジ", icon: BookOpen },
   { to: "/inquiries", label: "問い合わせメモ", icon: MessageSquareText },
+  { to: "/favorites", label: "お気に入り", icon: Star },
   { to: "/monthly-reviews", label: "月次振り返り", icon: CalendarCheck },
   { to: "/taxonomy", label: "分類管理", icon: Tags },
   { to: "/settings", label: "設定", icon: Settings },
@@ -167,6 +170,7 @@ function AppRoutes() {
       <Route path="/inquiries/new" element={<InquiryCreatePage />} />
       <Route path="/inquiries/:inquiryId" element={<InquiryDetailPage />} />
       <Route path="/inquiries/:inquiryId/edit" element={<InquiryEditPage />} />
+      <Route path="/favorites" element={<FavoritesPage />} />
       <Route path="/monthly-reviews" element={<MonthlyReviewPage />} />
       <Route path="/taxonomy" element={<TaxonomyPage />} />
       <Route path="/settings" element={<BackupPage />} />

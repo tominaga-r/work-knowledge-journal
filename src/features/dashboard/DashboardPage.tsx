@@ -124,6 +124,7 @@ export function DashboardPage() {
                 icon={<Star size={22} />}
                 label="お気に入り"
                 value={overview.favoriteCount}
+                to="/favorites"
               />
               <MonthlyReviewCard
                 isSaved={overview.monthlyReviewStatus.isSaved}
@@ -166,18 +167,37 @@ function StatsCard({
   icon,
   label,
   value,
+  to,
 }: {
   icon: ReactNode;
   label: string;
   value: number;
+  to?: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  const content = (
+    <>
       <div className="flex items-center gap-2 text-slate-500">
         {icon}
         <p className="text-sm font-semibold">{label}</p>
       </div>
       <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {content}
     </div>
   );
 }
