@@ -384,7 +384,7 @@ export function InquiryCreatePage() {
             <p className="mt-1 leading-6 text-slate-500">
               .txt / .md ファイルを読み込み、
               ##から始まる行を見出しとして取り込み候補を作成します。
-              候補を選ぶと、タイトルと問い合わせ内容に反映されます。
+              候補を選ぶと、タイトルと問い合わせ内容に表示されます。
             </p>
             <p className="mt-2 leading-6 text-amber-700">
               取り込み後は必ずフォームで内容を確認してから保存してください。
