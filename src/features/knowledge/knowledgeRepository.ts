@@ -1,5 +1,5 @@
 import { getDatabase } from "../../lib/db/client";
-import { nowIsoString } from "../../lib/utils/date";
+import { getLocalMonthUtcRange, nowIsoString } from "../../lib/utils/date";
 import { createId } from "../../lib/utils/id";
 import { formatZodError } from "../../lib/utils/validation";
 import {
@@ -258,8 +258,11 @@ export async function searchKnowledgeItems(
   const targetMonth = normalizeMonth(filters.targetMonth);
 
   if (targetMonth) {
+    const { startIso, endIso } = getLocalMonthUtcRange(targetMonth);
+
     whereConditions.push(
-      `substr(knowledge_items.created_at, 1, 7) = ${addValue(targetMonth)}`,
+      `knowledge_items.created_at >= ${addValue(startIso)}
+      AND knowledge_items.created_at < ${addValue(endIso)}`,
     );
   }
 
@@ -444,12 +447,14 @@ export async function countKnowledgeItemsByMonth(
   targetMonth: string,
 ): Promise<number> {
   const db = await getDatabase();
+  const { startIso, endIso } = getLocalMonthUtcRange(targetMonth);
 
   const rows = await db.select<Array<{ count: number }>>(
     `SELECT COUNT(*) as count
      FROM knowledge_items
-     WHERE substr(created_at, 1, 7) = $1`,
-    [targetMonth],
+     WHERE created_at >= $1
+       AND created_at < $2`,
+    [startIso, endIso],
   );
 
   return rows[0]?.count ?? 0;

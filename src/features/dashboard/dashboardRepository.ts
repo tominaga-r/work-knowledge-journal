@@ -1,5 +1,8 @@
 import { getDatabase } from "../../lib/db/client";
-import { currentMonthString } from "../../lib/utils/date";
+import {
+  currentMonthString,
+  getLocalMonthUtcRange,
+} from "../../lib/utils/date";
 
 export type RecentKnowledgeItem = {
   id: string;
@@ -55,6 +58,7 @@ async function selectCount(
 export async function getDashboardOverview(): Promise<DashboardOverview> {
   const db = await getDatabase();
   const targetMonth = currentMonthString();
+  const { startIso, endIso } = getLocalMonthUtcRange(targetMonth);
 
   const [
     monthlyKnowledgeCount,
@@ -68,9 +72,10 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
   ] = await Promise.all([
     selectCount(
       `SELECT COUNT(*) AS count
-       FROM knowledge_items
-       WHERE substr(created_at, 1, 7) = $1`,
-      [targetMonth],
+        FROM knowledge_items
+        WHERE created_at >= $1
+          AND created_at < $2`,
+      [startIso, endIso],
     ),
     selectCount(
       `SELECT COUNT(*) AS count
