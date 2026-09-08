@@ -1,8 +1,14 @@
 import { getDatabase } from "../../lib/db/client";
+import { currentMonthString } from "../../lib/utils/date";
 import {
-  currentMonthString,
-  getLocalMonthUtcRange,
-} from "../../lib/utils/date";
+  countFavoriteKnowledgeItems,
+  countKnowledgeItemsByMonth,
+} from "../knowledge/knowledgeRepository";
+import {
+  countFavoriteInquiryNotes,
+  countInquiryNotesByMonth,
+} from "../inquiry/inquiryRepository";
+import { countTags } from "../taxonomy/tagRepository";
 
 export type RecentKnowledgeItem = {
   id: string;
@@ -37,28 +43,13 @@ export type DashboardOverview = {
   recentInquiryNotes: RecentInquiryNote[];
 };
 
-type CountRow = {
-  count: number;
-};
-
 type MonthlyReviewRow = {
   updated_at: string;
 };
 
-async function selectCount(
-  sql: string,
-  params: unknown[] = [],
-): Promise<number> {
-  const db = await getDatabase();
-  const rows = await db.select<CountRow[]>(sql, params);
-
-  return rows[0]?.count ?? 0;
-}
-
 export async function getDashboardOverview(): Promise<DashboardOverview> {
   const db = await getDatabase();
   const targetMonth = currentMonthString();
-  const { startIso, endIso } = getLocalMonthUtcRange(targetMonth);
 
   const [
     monthlyKnowledgeCount,
@@ -70,33 +61,11 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
     recentKnowledgeItems,
     recentInquiryNotes,
   ] = await Promise.all([
-    selectCount(
-      `SELECT COUNT(*) AS count
-        FROM knowledge_items
-        WHERE created_at >= $1
-          AND created_at < $2`,
-      [startIso, endIso],
-    ),
-    selectCount(
-      `SELECT COUNT(*) AS count
-       FROM inquiry_notes
-       WHERE substr(occurred_on, 1, 7) = $1`,
-      [targetMonth],
-    ),
-    selectCount(
-      `SELECT COUNT(*) AS count
-       FROM tags`,
-    ),
-    selectCount(
-      `SELECT COUNT(*) AS count
-       FROM knowledge_items
-       WHERE is_favorite = 1`,
-    ),
-    selectCount(
-      `SELECT COUNT(*) AS count
-       FROM inquiry_notes
-       WHERE is_favorite = 1`,
-    ),
+    countKnowledgeItemsByMonth(targetMonth),
+    countInquiryNotesByMonth(targetMonth),
+    countTags(),
+    countFavoriteKnowledgeItems(),
+    countFavoriteInquiryNotes(),
     db.select<MonthlyReviewRow[]>(
       `SELECT updated_at
        FROM monthly_reviews
