@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Link2, Search, Star, Trash2, Unlink } from "lucide-react";
-import { createExcerpt } from "../../lib/utils/text";
+import { createExcerpt, splitCommaSeparatedValues } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import {
@@ -32,17 +32,6 @@ import {
   restoreScrollPosition,
   saveScrollPosition,
 } from "../../lib/utils/scrollRestoration";
-
-function splitNames(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-}
 
 function createLinkedKnowledgePath(knowledgeId: string, inquiryId: string) {
   return `/knowledge/${knowledgeId}?fromInquiryId=${encodeURIComponent(
@@ -318,7 +307,7 @@ export function InquiryDetailPage() {
     return null;
   }
 
-  const tagNames = splitNames(item.tag_names);
+  const tagNames = splitCommaSeparatedValues(item.tag_names);
 
   return (
     <div>
@@ -675,7 +664,7 @@ function LinkedKnowledgeCard({
   isSaving: boolean;
   onUnlink: () => void;
 }) {
-  const tagNames = splitNames(knowledge.tag_names);
+  const tagNames = splitCommaSeparatedValues(knowledge.tag_names);
 
   return (
     <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -753,8 +742,10 @@ function SuggestedKnowledgeCard({
   isSaving: boolean;
   onLink: () => void;
 }) {
-  const tagNames = splitNames(knowledge.tag_names);
-  const matchedTagNames = splitNames(knowledge.matched_tag_names);
+  const tagNames = splitCommaSeparatedValues(knowledge.tag_names);
+  const matchedTagNames = splitCommaSeparatedValues(
+    knowledge.matched_tag_names,
+  );
 
   return (
     <article className="rounded-xl border border-blue-100 bg-blue-50 p-4">
@@ -855,8 +846,8 @@ function KeywordSuggestedKnowledgeCard({
   isSaving: boolean;
   onLink: () => void;
 }) {
-  const tagNames = splitNames(knowledge.tag_names);
-  const matchedKeywords = splitNames(knowledge.matched_keywords);
+  const tagNames = splitCommaSeparatedValues(knowledge.tag_names);
+  const matchedKeywords = splitCommaSeparatedValues(knowledge.matched_keywords);
 
   return (
     <article className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">

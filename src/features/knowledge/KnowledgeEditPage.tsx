@@ -17,6 +17,7 @@ import {
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
 import { TagRecord, listTags } from "../taxonomy/tagRepository";
 import { getErrorMessage } from "../../lib/utils/error";
+import { splitCommaSeparatedValues } from "../../lib/utils/text";
 
 type FormState = {
   title: string;
@@ -64,17 +65,6 @@ function createFieldErrors(
   return errors;
 }
 
-function splitIds(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
-}
-
 function createFormStateFromItem(item: KnowledgeListItem): FormState {
   return {
     title: item.title,
@@ -83,7 +73,7 @@ function createFormStateFromItem(item: KnowledgeListItem): FormState {
     knowledgeCategoryId: item.knowledge_category_id ?? "",
     source: item.source,
     isFavorite: item.is_favorite === 1,
-    tagIds: splitIds(item.tag_ids),
+    tagIds: splitCommaSeparatedValues(item.tag_ids),
   };
 }
 

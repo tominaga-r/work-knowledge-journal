@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Search, Star, X } from "lucide-react";
-import { createExcerpt } from "../../lib/utils/text";
+import { createExcerpt, splitCommaSeparatedValues } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import { inquirySourceLabels } from "./inquiryLabels";
@@ -38,17 +38,6 @@ const initialFilters: FilterState = {
   isFavorite: false,
   targetMonth: "",
 };
-
-function splitNames(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-}
 
 function createSearchFilters(filters: FilterState): SearchInquiryFilters {
   return {
@@ -456,7 +445,7 @@ export function InquiryListPage() {
       {status === "ready" && items.length > 0 && (
         <div className="grid gap-4">
           {items.map((item) => {
-            const tagNames = splitNames(item.tag_names);
+            const tagNames = splitCommaSeparatedValues(item.tag_names);
 
             return (
               <article

@@ -2,6 +2,7 @@ import { getDatabase } from "../../lib/db/client";
 import { nowIsoString } from "../../lib/utils/date";
 import { createId } from "../../lib/utils/id";
 import type { KnowledgeListItem } from "../knowledge/knowledgeRepository";
+import { splitCommaSeparatedValues } from "../../lib/utils/text";
 
 export type LinkedKnowledgeItem = KnowledgeListItem;
 
@@ -175,17 +176,6 @@ function countKeywordMatches(
       return a.localeCompare(b);
     })
     .slice(0, 12);
-}
-
-function splitMatchedKeywords(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(",")
-    .map((keyword) => keyword.trim())
-    .filter(Boolean);
 }
 
 export async function listLinkedKnowledgeItems(
@@ -399,7 +389,9 @@ export async function listKeywordMatchedKnowledgeCandidates(
       };
     })
     .filter((candidate) => {
-      const matchedKeywords = splitMatchedKeywords(candidate.matched_keywords);
+      const matchedKeywords = splitCommaSeparatedValues(
+        candidate.matched_keywords,
+      );
 
       return (
         candidate.matched_keyword_count >= 2 ||

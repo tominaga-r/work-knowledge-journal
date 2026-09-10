@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, MessageSquareText, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import { createExcerpt } from "../../lib/utils/text";
+import { createExcerpt, splitCommaSeparatedValues } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import {
@@ -21,17 +21,6 @@ import {
 } from "../inquiry/inquiryRepository";
 
 type FavoriteStatus = "loading" | "ready" | "error";
-
-function splitNames(names: string | null): string[] {
-  if (!names) {
-    return [];
-  }
-
-  return names
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-}
 
 export function FavoritesPage() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeListItem[]>([]);
@@ -229,7 +218,7 @@ function FavoriteKnowledgeSection({
       ) : (
         <div className="space-y-4">
           {items.map((item) => {
-            const tagNames = splitNames(item.tag_names);
+            const tagNames = splitCommaSeparatedValues(item.tag_names);
 
             return (
               <article
@@ -348,7 +337,7 @@ function FavoriteInquirySection({
       ) : (
         <div className="space-y-4">
           {items.map((item) => {
-            const tagNames = splitNames(item.tag_names);
+            const tagNames = splitCommaSeparatedValues(item.tag_names);
 
             return (
               <article

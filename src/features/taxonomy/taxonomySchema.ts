@@ -16,7 +16,11 @@ export const createTagSchema = z.object({
     .string()
     .trim()
     .min(1, "共通タグ名は必須です。")
-    .max(30, "共通タグ名は30文字以内で入力してください。"),
+    .max(30, "共通タグ名は30文字以内で入力してください。")
+    .refine(
+      (name) => !name.includes(","),
+      "共通タグ名にカンマ（,）は使用できません。",
+    ),
 });
 
 export type CategoryKind = z.infer<typeof categoryKindSchema>;

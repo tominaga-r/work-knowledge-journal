@@ -13,7 +13,7 @@ import {
   knowledgeSourceValues,
   knowledgeTypeValues,
 } from "./knowledgeSchema";
-import { createExcerpt } from "../../lib/utils/text";
+import { createExcerpt, splitCommaSeparatedValues } from "../../lib/utils/text";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
 import { Link } from "react-router-dom";
@@ -45,17 +45,6 @@ const initialFilters: FilterState = {
   isFavorite: false,
   targetMonth: "",
 };
-
-function splitTagNames(tagNames: string | null): string[] {
-  if (!tagNames) {
-    return [];
-  }
-
-  return tagNames
-    .split(",")
-    .map((tagName) => tagName.trim())
-    .filter(Boolean);
-}
 
 function createSearchFilters(filters: FilterState): SearchKnowledgeFilters {
   return {
@@ -496,7 +485,7 @@ export function KnowledgeListPage() {
       {status === "ready" && items.length > 0 && (
         <div className="space-y-4">
           {items.map((item) => {
-            const tagNames = splitTagNames(item.tag_names);
+            const tagNames = splitCommaSeparatedValues(item.tag_names);
 
             return (
               <article

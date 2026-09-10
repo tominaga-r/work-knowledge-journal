@@ -14,17 +14,7 @@ import {
 } from "./knowledgeRepository";
 import { formatDateTime } from "../../lib/utils/format";
 import { getErrorMessage } from "../../lib/utils/error";
-
-function splitTagNames(tagNames: string | null): string[] {
-  if (!tagNames) {
-    return [];
-  }
-
-  return tagNames
-    .split(",")
-    .map((tagName) => tagName.trim())
-    .filter(Boolean);
-}
+import { splitCommaSeparatedValues } from "../../lib/utils/text";
 
 function createBackLink(fromInquiryId: string | null): {
   to: string;
@@ -199,7 +189,7 @@ export function KnowledgeDetailPage() {
     );
   }
 
-  const tagNames = splitTagNames(item.tag_names);
+  const tagNames = splitCommaSeparatedValues(item.tag_names);
 
   return (
     <div>
