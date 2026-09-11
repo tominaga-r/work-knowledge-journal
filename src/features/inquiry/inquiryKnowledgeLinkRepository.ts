@@ -40,7 +40,7 @@ async function listLinkTableColumnNames(): Promise<Set<string>> {
 function normalizeSearchText(value: string): string {
   return value
     .replace(
-      /[、。,.!?！？「」『』（）()【】\[\]{}<>:：;；/\\|"'“”‘’\n\r\t]/g,
+      /[、。,.!?！？「」『』（）()【】[\]{}<>:：;；/\\|"'“”‘’\n\r\t]/g,
       " ",
     )
     .replace(/\s+/g, " ")

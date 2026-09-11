@@ -182,13 +182,15 @@ export function InquiryDetailPage() {
     };
   }, [inquiryId]);
 
+  const itemId = item?.id;
+
   useEffect(() => {
-    if (status !== "ready" || !item) {
+    if (status !== "ready" || !itemId) {
       return;
     }
 
-    restoreScrollPosition(createInquiryDetailScrollKey(item.id));
-  }, [status, item?.id]);
+    restoreScrollPosition(createInquiryDetailScrollKey(itemId));
+  }, [status, itemId]);
 
   async function handleLinkKnowledge() {
     if (!item || !selectedKnowledgeId || linkStatus === "saving") {
