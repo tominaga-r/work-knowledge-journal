@@ -18,6 +18,9 @@ out
 src-tauri/target
 target
 
+# Test outputs
+coverage
+
 # Local env files
 *.local
 .env
