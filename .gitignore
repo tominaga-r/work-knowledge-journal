@@ -20,6 +20,7 @@ target
 
 # Test outputs
 coverage
+.vitest/
 
 # Local env files
 *.local
