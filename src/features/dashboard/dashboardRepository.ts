@@ -26,7 +26,7 @@ export type RecentInquiryNote = {
   created_at: string;
 };
 
-export type MonthlyReviewStatus = {
+type MonthlyReviewStatus = {
   targetMonth: string;
   isSaved: boolean;
   updatedAt: string | null;

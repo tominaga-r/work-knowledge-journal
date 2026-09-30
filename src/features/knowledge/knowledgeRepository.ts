@@ -7,10 +7,7 @@ import {
   KnowledgeSource,
   KnowledgeType,
   createKnowledgeSchema,
-  knowledgeTypeValues,
 } from "./knowledgeSchema";
-
-export const knowledgeTypes = knowledgeTypeValues;
 
 export type KnowledgeRecord = {
   id: string;
@@ -421,16 +418,6 @@ export async function deleteKnowledgeItem(id: string): Promise<void> {
      WHERE id = $1`,
     [normalizedId],
   );
-}
-
-export async function countKnowledgeItems(): Promise<number> {
-  const db = await getDatabase();
-
-  const rows = await db.select<Array<{ count: number }>>(
-    "SELECT COUNT(*) as count FROM knowledge_items",
-  );
-
-  return rows[0]?.count ?? 0;
 }
 
 export async function countFavoriteKnowledgeItems(): Promise<number> {

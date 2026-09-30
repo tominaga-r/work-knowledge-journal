@@ -24,5 +24,3 @@ export const createTagSchema = z.object({
 });
 
 export type CategoryKind = z.infer<typeof categoryKindSchema>;
-export type CreateCategoryInput = z.input<typeof createCategorySchema>;
-export type CreateTagInput = z.input<typeof createTagSchema>;

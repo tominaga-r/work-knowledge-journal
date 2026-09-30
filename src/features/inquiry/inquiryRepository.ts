@@ -188,12 +188,6 @@ export async function createInquiryNote(
   return item;
 }
 
-export async function listInquiryNotes(): Promise<InquiryListItem[]> {
-  const db = await getDatabase();
-
-  return db.select<InquiryListItem[]>(createInquiryListSelectSql());
-}
-
 export async function searchInquiryNotes(
   filters: SearchInquiryFilters,
 ): Promise<InquiryListItem[]> {
@@ -428,16 +422,6 @@ export async function deleteInquiryNote(id: string): Promise<void> {
      WHERE id = $1`,
     [normalizedId],
   );
-}
-
-export async function countInquiryNotes(): Promise<number> {
-  const db = await getDatabase();
-
-  const rows = await db.select<Array<{ count: number }>>(
-    "SELECT COUNT(*) as count FROM inquiry_notes",
-  );
-
-  return rows[0]?.count ?? 0;
 }
 
 export async function countFavoriteInquiryNotes(): Promise<number> {

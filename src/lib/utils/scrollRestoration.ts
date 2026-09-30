@@ -59,7 +59,3 @@ export function consumeScrollPosition(key: string): boolean {
 
   return true;
 }
-
-export function clearScrollPosition(key: string): void {
-  sessionStorage.removeItem(createScrollKey(key));
-}

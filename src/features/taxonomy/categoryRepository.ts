@@ -179,19 +179,7 @@ export async function deleteCategory(
   );
 }
 
-export async function countCategories(kind: CategoryKind): Promise<number> {
-  const db = await getDatabase();
-  const tableName = getCategoryTableName(kind);
-
-  const rows = await db.select<Array<{ count: number }>>(
-    `SELECT COUNT(*) as count
-     FROM ${tableName}`,
-  );
-
-  return rows[0]?.count ?? 0;
-}
-
-export async function countCategoryUsage(
+async function countCategoryUsage(
   kind: CategoryKind,
   id: string,
 ): Promise<number> {

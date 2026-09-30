@@ -150,7 +150,7 @@ export async function countTags(): Promise<number> {
   return rows[0]?.count ?? 0;
 }
 
-export async function countTagUsage(id: string): Promise<number> {
+async function countTagUsage(id: string): Promise<number> {
   const normalizedId = id.trim();
 
   if (!normalizedId) {
