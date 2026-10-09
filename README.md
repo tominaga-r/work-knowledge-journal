@@ -1,7 +1,107 @@
-# Tauri + React + Typescript
+# 業務ナレッジノート（Work Knowledge Journal）
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+接客・販売・事務などの業務で得た知識や問い合わせ対応の気づきを、**記録・検索・関連付け・振り返り**まで一つの場所で扱う、Windows向けのローカルデスクトップアプリです。
 
-## Recommended IDE Setup
+個人利用を主な対象とし、クラウドサービスやユーザー登録を前提とせず、データを端末内のSQLiteに保存します。
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+> **開発状況**：v0.1.0の公開準備中。Windows x64向けNSISインストーラーの生成を確認していますが、GitHub Releasesからの配布は公開後に案内します。
+
+## 主な機能
+
+| 機能               | できること                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------------ |
+| ナレッジ管理       | 業務知識の作成・一覧・詳細・編集・削除。種類、分類、共通タグ、情報元、お気に入りで整理                 |
+| 問い合わせメモ     | 問い合わせ概要、対応メモ、次に活かすこと、発生日などを記録                                             |
+| 関連付け           | 問い合わせメモと既存ナレッジを関連付け、相互の情報を参照しやすくする                                   |
+| 検索・絞り込み     | キーワードや分類・タグなどの条件から登録した記録を探す                                                 |
+| お気に入り         | ナレッジと問い合わせメモのお気に入りをまとめて確認                                                     |
+| 月次振り返り       | 月ごとの登録状況を参照し、学び・課題・次月の目標などを保存。Markdown形式でも出力                       |
+| テキスト取り込み   | `.txt` / `.md` から取り込み候補を作成し、内容を確認・編集してから登録。`##` 見出しで複数候補を分割可能 |
+| バックアップ・復元 | JSONバックアップと復元前の形式検証・件数比較。パスワード付き暗号化バックアップにも対応                 |
+
+## 画面イメージ
+
+公開用スクリーンショットは、個人情報・社外秘情報を含まないデモデータで撮影したものを掲載予定です。撮影する画面と確認事項は [スクリーンショット作成ガイド](docs/screenshots.md) にまとめています。
+
+## このアプリで重視したこと
+
+- **記録と再利用をつなげること**：ナレッジと問い合わせメモを別々に管理しつつ、関連付けで再参照できる構成にしました。
+- **業務利用者が迷いにくいこと**：入力内容を保存前に確認できる取り込み手順や、復元前の件数比較、技術用語を抑えたエラー表示を採用しています。
+- **小さく作り、拡張可能に保つこと**：機能別の画面・Repository・スキーマに分け、単一の巨大な画面やデータ操作処理に集中させないようにしています。
+- **ローカルデータを適切に扱うこと**：復元前の検証やバックアップ暗号化を実装する一方、SQLiteファイル自体は暗号化されないなどの限界も明記しています。
+
+## 技術構成
+
+| 分野               | 技術・方針                                                   |
+| ------------------ | ------------------------------------------------------------ |
+| デスクトップアプリ | Tauri v2（Windows）                                          |
+| フロントエンド     | React、TypeScript、Vite、Tailwind CSS                        |
+| 画面遷移・検証     | React Router、Zod                                            |
+| データ保存         | SQLite、Tauri SQLプラグイン                                  |
+| バックアップ暗号化 | Web Crypto API、AES-GCM、PBKDF2（SHA-256）                   |
+| 品質管理           | ESLint、Prettier、Vitest、GitHub Actions、Dependabot、CodeQL |
+
+データ操作は概ね **画面 → Repository → Tauri SQLプラグイン → SQLite** の順に扱い、画面からのDB操作を分離しています。詳しくは [アーキテクチャ](docs/architecture.md) と [データベース設計](docs/database.md) を参照してください。
+
+## 開発環境での起動
+
+WindowsのTauri開発に必要なRust・Node.js・Microsoft C++ Build Tools・WebView2などの前提条件は、[Tauri公式の前提条件](https://v2.tauri.app/start/prerequisites/)を確認してください。
+
+```bash
+npm ci
+npm run tauri -- dev
+```
+
+フロントエンド単体の品質確認：
+
+```bash
+npm run format:check
+npm run lint
+npm run test
+npm run build
+```
+
+Windows向け配布ビルド：
+
+```bash
+npm run tauri build
+```
+
+生成されるNSISインストーラーの例：
+
+```text
+src-tauri/target/release/bundle/nsis/Work Knowledge Journal_0.1.0_x64-setup.exe
+```
+
+> 配布版の公開状況は [Releases](https://github.com/tominaga-r/work-knowledge-journal/releases) を確認してください。
+
+## 品質確認
+
+- Vitestによる単体テスト：**70件成功**（直近のローカル確認結果）。日付、テキスト処理・取り込み、入力スキーマ、バックアップJSON検証、暗号化・復号などを対象としています。
+- GitHub ActionsのCIでフォーマット・Lint・テスト・フロントエンドビルドを実行する構成です。
+- Windows向けTauri releaseビルドとNSISインストーラーの生成を確認しています。
+- 未使用コード・依存の静的監査（Knip）と、npm / Rust依存の脆弱性調査を実施しています。
+
+**単体テストだけでは、インストール後の全操作や復元時の障害回復までは保証できません。** 確認範囲と未検証事項は [テスト・検証](docs/testing.md) を参照してください。
+
+## 利用上の注意と制限
+
+- 顧客氏名、連絡先、購入履歴、社外秘情報、非公開の商品情報など、機密性の高い内容を保存する用途は想定していません。匿名化・一般化した業務メモを対象とします。
+- **SQLiteデータベース自体は暗号化していません。** 暗号化されるのは、利用者が明示的に作成する暗号化バックアップファイルです。通常のJSONバックアップは平文です。
+- 復元処理はアプリ内データ全体に影響します。復元前に現データのバックアップを取得してください。復元全体のトランザクションによる原子性は今後の改善対象です。
+- 現段階の配布対象はWindows x64です。クラウド同期、複数端末間のリアルタイム共有、ユーザー認証は実装対象外です。
+
+詳しくは [セキュリティと制限](docs/security.md) を参照してください。
+
+## ドキュメント
+
+- [要件とスコープ](docs/requirements.md)：対象利用者、機能、対象外、受け入れ観点
+- [アーキテクチャ](docs/architecture.md)：構成、データフロー、設計判断
+- [データベース設計](docs/database.md)：主要テーブルと関連
+- [セキュリティと制限](docs/security.md)：対策、対象範囲、既知の制約
+- [テスト・検証](docs/testing.md)：自動テストと手動確認の役割
+- [操作ガイド](docs/user-guide.md)：基本操作、取り込み、バックアップ・復元
+
+## 今後の改善候補
+
+復元処理のトランザクション制御、登録件数が多い場合の性能検証、操作説明とスクリーンショットの充実を検討しています。
