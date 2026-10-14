@@ -2,7 +2,7 @@
 
 ## 1. システムの位置づけ
 
-本アプリはWindows向けのローカルファーストなデスクトップアプリ。画面をReact/TypeScriptで構築し、Tauri v2を介して端末内のSQLiteを操作する。リモートサーバー、ユーザー認証、クラウドDBを中核機能の前提としない。
+本アプリはWindows向けのローカルファーストなデスクトップアプリである。画面をReact/TypeScriptで構築し、Tauri v2を介して端末内のSQLiteを操作する。リモートサーバー、ユーザー認証、クラウドDBを中核機能の前提としない設計である。
 
 ## 2. 構成概略
 
@@ -17,7 +17,7 @@ flowchart TD
     UI --> BACKUP[バックアップ・検証・復号]
     BACKUP --> REPO
     BACKUP --> CRYPTO[Web Crypto API]
-    UI --> REVIEW[月次振り返り / Markdown出力]
+    UI --> REVIEW[月次振り返り / Markdownコピー]
 ```
 
 これは主要処理を簡略化した**論理構成図**であり、個々の関数呼び出しの完全な追跡図ではない。
