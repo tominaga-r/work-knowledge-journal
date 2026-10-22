@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Search, Star, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Search, Star, X } from "lucide-react";
 import {
   KnowledgeListItem,
   SearchKnowledgeFilters,
@@ -75,6 +75,7 @@ export function KnowledgeListPage() {
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
+  const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -226,6 +227,25 @@ export function KnowledgeListPage() {
 
   const activeFilters = hasActiveFilters(filters);
 
+  const activeDetailFilterLabels: string[] = [
+    ...(filters.type ? [`種類: ${knowledgeTypeLabels[filters.type]}`] : []),
+    ...(filters.knowledgeCategoryId
+      ? [
+          `分類: ${categories.find((category) => category.id === filters.knowledgeCategoryId)?.name ?? "指定あり"}`,
+        ]
+      : []),
+    ...(filters.tagId
+      ? [
+          `タグ: #${tags.find((tag) => tag.id === filters.tagId)?.name ?? "指定あり"}`,
+        ]
+      : []),
+    ...(filters.source
+      ? [`情報元: ${knowledgeSourceLabels[filters.source]}`]
+      : []),
+    ...(filters.targetMonth ? [`作成月: ${filters.targetMonth}`] : []),
+    ...(filters.isFavorite ? ["お気に入りのみ"] : []),
+  ];
+
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -244,11 +264,6 @@ export function KnowledgeListPage() {
         </Link>
       </div>
 
-      <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        顧客の氏名・連絡先・購入履歴・社外秘情報・非公開の商品情報は保存しないでください。
-        匿名化・一般化した内容として記録してください。
-      </div>
-
       {optionErrorMessage && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">
@@ -265,183 +280,221 @@ export function KnowledgeListPage() {
         </div>
       )}
 
-      <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="inline-flex items-center gap-2 text-lg font-bold text-slate-900">
-              <Search size={18} />
-              検索・絞り込み
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              ナレッジ種類は情報の用途、ナレッジ分類は業務領域、共通タグは横断的な目印として使います。
-            </p>
-          </div>
-
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <label
+            htmlFor="knowledge-search-keyword"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900"
+          >
+            <Search size={16} />
+            キーワード検索
+          </label>
           <button
             type="button"
             onClick={clearFilters}
             disabled={!activeFilters}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <X size={16} />
+            <X size={15} />
             条件クリア
           </button>
         </div>
 
-        <div className="grid gap-4">
-          <div>
-            <label
-              htmlFor="knowledge-search-keyword"
-              className="text-sm font-semibold text-slate-900"
-            >
-              キーワード
-            </label>
-            <input
-              id="knowledge-search-keyword"
-              value={filters.keyword}
-              onChange={(event) => updateFilter("keyword", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              placeholder="タイトル、本文、分類名、タグ名で検索"
-            />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            id="knowledge-search-keyword"
+            type="search"
+            value={filters.keyword}
+            onChange={(event) => updateFilter("keyword", event.target.value)}
+            className="w-full min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+            placeholder="キーワードで検索..."
+          />
+          <button
+            type="button"
+            aria-expanded={isAdvancedSearchOpen}
+            aria-controls="knowledge-advanced-search"
+            onClick={() => setIsAdvancedSearchOpen((current) => !current)}
+            className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
+          >
+            詳細検索
+            {activeDetailFilterLabels.length > 0 && (
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs">
+                {activeDetailFilterLabels.length}
+              </span>
+            )}
+            {isAdvancedSearchOpen ? (
+              <ChevronUp size={16} />
+            ) : (
+              <ChevronDown size={16} />
+            )}
+          </button>
+        </div>
+
+        {activeDetailFilterLabels.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-500">適用中:</span>
+            {activeDetailFilterLabels.map((label) => (
+              <span
+                key={label}
+                className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700"
+              >
+                {label}
+              </span>
+            ))}
           </div>
+        )}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label
-                htmlFor="knowledge-type-filter"
-                className="text-sm font-semibold text-slate-900"
-              >
-                ナレッジ種類
-              </label>
-              <select
-                id="knowledge-type-filter"
-                value={filters.type}
-                onChange={(event) =>
-                  updateFilter("type", event.target.value as KnowledgeType | "")
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              >
-                <option value="">すべて</option>
-                {knowledgeTypeValues.map((type) => (
-                  <option key={type} value={type}>
-                    {knowledgeTypeLabels[type]}
-                  </option>
-                ))}
-              </select>
+        <div
+          id="knowledge-advanced-search"
+          hidden={!isAdvancedSearchOpen}
+          className="mt-4 border-t border-slate-200 pt-4"
+        >
+          <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label
+                  htmlFor="knowledge-type-filter"
+                  className="text-sm font-semibold text-slate-900"
+                >
+                  ナレッジ種類
+                </label>
+                <select
+                  id="knowledge-type-filter"
+                  value={filters.type}
+                  onChange={(event) =>
+                    updateFilter(
+                      "type",
+                      event.target.value as KnowledgeType | "",
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="">すべて</option>
+                  {knowledgeTypeValues.map((type) => (
+                    <option key={type} value={type}>
+                      {knowledgeTypeLabels[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="knowledge-category-filter"
+                  className="text-sm font-semibold text-slate-900"
+                >
+                  ナレッジ分類
+                </label>
+                <select
+                  id="knowledge-category-filter"
+                  value={filters.knowledgeCategoryId}
+                  onChange={(event) =>
+                    updateFilter("knowledgeCategoryId", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="">すべて</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="knowledge-tag-filter"
+                  className="text-sm font-semibold text-slate-900"
+                >
+                  共通タグ
+                </label>
+                <select
+                  id="knowledge-tag-filter"
+                  value={filters.tagId}
+                  onChange={(event) =>
+                    updateFilter("tagId", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="">すべて</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      #{tag.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="knowledge-category-filter"
-                className="text-sm font-semibold text-slate-900"
-              >
-                ナレッジ分類
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label
+                  htmlFor="knowledge-source-filter"
+                  className="text-sm font-semibold text-slate-900"
+                >
+                  情報元
+                </label>
+                <select
+                  id="knowledge-source-filter"
+                  value={filters.source}
+                  onChange={(event) =>
+                    updateFilter(
+                      "source",
+                      event.target.value as KnowledgeSource | "",
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="">すべて</option>
+                  {knowledgeSourceValues.map((source) => (
+                    <option key={source} value={source}>
+                      {knowledgeSourceLabels[source]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="knowledge-month-filter"
+                  className="text-sm font-semibold text-slate-900"
+                >
+                  作成月
+                </label>
+                <input
+                  id="knowledge-month-filter"
+                  type="month"
+                  value={filters.targetMonth}
+                  onChange={(event) =>
+                    updateFilter("targetMonth", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
+
+              <label className="mt-0 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 md:mt-7">
+                <input
+                  type="checkbox"
+                  checked={filters.isFavorite}
+                  onChange={(event) =>
+                    updateFilter("isFavorite", event.target.checked)
+                  }
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                お気に入りのみ
               </label>
-              <select
-                id="knowledge-category-filter"
-                value={filters.knowledgeCategoryId}
-                onChange={(event) =>
-                  updateFilter("knowledgeCategoryId", event.target.value)
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              >
-                <option value="">すべて</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
             </div>
-
-            <div>
-              <label
-                htmlFor="knowledge-tag-filter"
-                className="text-sm font-semibold text-slate-900"
-              >
-                共通タグ
-              </label>
-              <select
-                id="knowledge-tag-filter"
-                value={filters.tagId}
-                onChange={(event) => updateFilter("tagId", event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              >
-                <option value="">すべて</option>
-                {tags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    #{tag.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label
-                htmlFor="knowledge-source-filter"
-                className="text-sm font-semibold text-slate-900"
-              >
-                情報元
-              </label>
-              <select
-                id="knowledge-source-filter"
-                value={filters.source}
-                onChange={(event) =>
-                  updateFilter(
-                    "source",
-                    event.target.value as KnowledgeSource | "",
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              >
-                <option value="">すべて</option>
-                {knowledgeSourceValues.map((source) => (
-                  <option key={source} value={source}>
-                    {knowledgeSourceLabels[source]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="knowledge-month-filter"
-                className="text-sm font-semibold text-slate-900"
-              >
-                作成月
-              </label>
-              <input
-                id="knowledge-month-filter"
-                type="month"
-                value={filters.targetMonth}
-                onChange={(event) =>
-                  updateFilter("targetMonth", event.target.value)
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              />
-            </div>
-
-            <label className="mt-0 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 md:mt-7">
-              <input
-                type="checkbox"
-                checked={filters.isFavorite}
-                onChange={(event) =>
-                  updateFilter("isFavorite", event.target.checked)
-                }
-                className="h-4 w-4 rounded border-slate-300"
-              />
-              お気に入りのみ
-            </label>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
-            表示件数:{" "}
-            <span className="font-bold text-slate-900">{items.length}</span>件
           </div>
         </div>
       </section>
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-slate-900">ナレッジ一覧</h2>
+        {status === "ready" && (
+          <p className="text-sm text-slate-500">表示件数: {items.length}件</p>
+        )}
+      </div>
 
       {status === "loading" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
