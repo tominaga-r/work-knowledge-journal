@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown, FileText } from "lucide-react";
 import { todayDateString } from "../../lib/utils/date";
 import { getErrorMessage } from "../../lib/utils/error";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
@@ -91,10 +91,13 @@ export function InquiryCreatePage() {
 
   const hasActiveImportEntry = activeImportEntryId !== null;
 
-  const importSectionRef = useRef<HTMLDivElement | null>(null);
+  const importSectionRef = useRef<HTMLDetailsElement | null>(null);
 
   function scrollToImportSection() {
     window.requestAnimationFrame(() => {
+      if (importSectionRef.current) {
+        importSectionRef.current.open = true;
+      }
       importSectionRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -372,15 +375,34 @@ export function InquiryCreatePage() {
         </div>
       </div>
 
-      <div
+      <details
         ref={importSectionRef}
-        className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
+        className="group mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
       >
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-300 [&::-webkit-details-marker]:hidden">
+          <span className="flex min-w-0 items-center gap-2">
+            <FileText
+              size={18}
+              aria-hidden="true"
+              className="shrink-0 text-slate-500"
+            />
+            <span className="font-semibold">テキストファイルから取り込む</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            {importEntries.length > 0 && (
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                残り {importEntries.length}件
+              </span>
+            )}
+            <ChevronDown
+              size={18}
+              aria-hidden="true"
+              className="text-slate-500 transition-transform group-open:rotate-180"
+            />
+          </span>
+        </summary>
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="font-semibold text-slate-900">
-              テキストファイルから取り込む
-            </p>
             <p className="mt-1 leading-6 text-slate-500">
               .txt / .md ファイルを読み込み、
               ##から始まる行を見出しとして取り込み候補を作成します。
@@ -471,7 +493,7 @@ export function InquiryCreatePage() {
             </div>
           </div>
         )}
-      </div>
+      </details>
 
       {categoryLoadError && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
