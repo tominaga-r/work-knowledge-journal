@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronDown, FileText } from "lucide-react";
+import { ChevronDown, FileText } from "lucide-react";
 import { todayDateString } from "../../lib/utils/date";
 import { getErrorMessage } from "../../lib/utils/error";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
@@ -229,7 +229,7 @@ export function InquiryCreatePage() {
 
     setActiveImportEntryId(entry.id);
     setImportMessage(
-      `「${entry.title}」をフォームに表示しました。内容を確認してから保存してください。`,
+      `「${entry.title}」をフォームに表示しました。内容を確認してから保存をしてください。`,
     );
     setImportErrorMessage("");
 
@@ -362,19 +362,6 @@ export function InquiryCreatePage() {
         </Link>
       </div>
 
-      <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        <div className="flex gap-3">
-          <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-          <div>
-            <p className="font-semibold">入力前の注意</p>
-            <p className="mt-1">
-              問い合わせ内容は匿名化し、対応の振り返り・次回の業務改善・対応品質向上に使える形で記録してください。
-              顧客の氏名・連絡先・個人情報は入力しないでください。
-            </p>
-          </div>
-        </div>
-      </div>
-
       <details
         ref={importSectionRef}
         className="group mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
@@ -403,14 +390,13 @@ export function InquiryCreatePage() {
         </summary>
         <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="mt-1 leading-6 text-slate-500">
-              .txt / .md ファイルを読み込み、
-              ##から始まる行を見出しとして取り込み候補を作成します。
-              候補を選ぶと、タイトルと問い合わせ内容に表示されます。
-            </p>
-            <p className="mt-2 leading-6 text-amber-700">
-              取り込み後は必ずフォームで内容を確認してから保存してください。
-              個人情報・社外秘情報・非公開情報が含まれる場合は削除または匿名化してください。
+            <div className="mt-1 space-y-1 leading-6 text-slate-600">
+              <p>.txt / .md ファイルから取り込み候補を作成します。</p>
+              <p>ファイル内容から「##」で始まる行を見出しとして分割します。</p>
+              <p>候補を選ぶと、タイトルと問い合わせ内容に表示されます。</p>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              取り込み後は必ずフォームで内容を確認してから保存をしてください。
             </p>
           </div>
 
@@ -475,7 +461,7 @@ export function InquiryCreatePage() {
                         </p>
                         <p className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">
                           {entry.content ||
-                            "本文が未入力です。追記して保存してください。"}
+                            "本文が未入力です。追記して保存をしてください。"}
                         </p>
                       </div>
 
@@ -801,6 +787,44 @@ export function InquiryCreatePage() {
           )}
         </div>
       </form>
+
+      <section
+        aria-labelledby="create-input-points-heading"
+        className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
+      >
+        <h2
+          id="create-input-points-heading"
+          className="mb-3 text-sm font-semibold text-slate-700"
+        >
+          入力時のポイント
+        </h2>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              匿名化
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              個人や案件を特定できない形にすると、安心して振り返れます。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              対応メモ
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              確認したことや対応内容を整理すると、次の対応に役立ちます。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              次回活用
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              次に活かせそうな点を一言残すと、業務改善につながります。
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

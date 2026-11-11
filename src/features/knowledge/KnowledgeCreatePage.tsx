@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronDown, FileText } from "lucide-react";
+import { ChevronDown, FileText } from "lucide-react";
 import { createKnowledgeItem } from "./knowledgeRepository";
 import { knowledgeSourceLabels, knowledgeTypeLabels } from "./knowledgeLabels";
 import {
@@ -221,7 +221,7 @@ export function KnowledgeCreatePage() {
 
     setActiveImportEntryId(entry.id);
     setImportMessage(
-      `「${entry.title}」をフォームに表示しました。内容を確認してから保存してください。`,
+      `「${entry.title}」をフォームに表示しました。内容を確認してから保存をしてください。`,
     );
     setImportErrorMessage("");
 
@@ -347,19 +347,6 @@ export function KnowledgeCreatePage() {
         </Link>
       </div>
 
-      <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        <div className="flex gap-3">
-          <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-          <div>
-            <p className="font-semibold">入力前の注意</p>
-            <p className="mt-1">
-              個人名や社外秘の内容は避けて記録してください。
-              あとで共有・見返しやすいように、情報元は内容の由来に近いものを選択してください。
-            </p>
-          </div>
-        </div>
-      </div>
-
       <details
         ref={importSectionRef}
         className="group mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
@@ -388,14 +375,13 @@ export function KnowledgeCreatePage() {
         </summary>
         <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="mt-1 leading-6 text-slate-500">
-              .txt / .md ファイルを読み込み、
-              ##から始まる行を見出しとして取り込み候補を作成します。
-              候補を選ぶと、タイトルと本文に表示されます。
-            </p>
-            <p className="mt-2 leading-6 text-amber-700">
-              取り込み後は必ずフォームで内容を確認してから保存してください。
-              個人情報・社外秘情報・非公開情報が含まれる場合は削除または匿名化してください。
+            <div className="mt-1 space-y-1 leading-6 text-slate-600">
+              <p>.txt / .md ファイルから取り込み候補を作成します。</p>
+              <p>ファイル内容から「##」で始まる行を見出しとして分割します。</p>
+              <p>候補を選ぶと、タイトルと本文に表示されます。</p>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              取り込み後は必ずフォームで内容を確認してから保存をしてください。
             </p>
           </div>
 
@@ -460,7 +446,7 @@ export function KnowledgeCreatePage() {
                         </p>
                         <p className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">
                           {entry.content ||
-                            "本文が未入力です。追記して保存してください。"}
+                            "本文が未入力です。追記して保存をしてください。"}
                         </p>
                       </div>
 
@@ -767,6 +753,44 @@ export function KnowledgeCreatePage() {
           )}
         </div>
       </form>
+
+      <section
+        aria-labelledby="create-input-points-heading"
+        className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
+      >
+        <h2
+          id="create-input-points-heading"
+          className="mb-3 text-sm font-semibold text-slate-700"
+        >
+          入力時のポイント
+        </h2>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              タイトル
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              内容が伝わる短いタイトルにすると、あとから探しやすくなります。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              情報元
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              内容の由来に近いものを選ぶと、見返すときに役立ちます。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              記録内容
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              個人情報・社外秘・非公開情報は記録対象外です。
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
