@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   KnowledgeListItem,
   getKnowledgeItemById,
@@ -335,20 +335,6 @@ export function KnowledgeEditPage() {
           一覧へ戻る
         </Link>
       </div>
-
-      <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        <div className="flex gap-3">
-          <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-          <div>
-            <p className="font-semibold">編集時の注意</p>
-            <p className="mt-1">
-              個人名や社外秘の内容は避けて記録してください。
-              既存本文にそのような情報が含まれていないかも確認してください。
-            </p>
-          </div>
-        </div>
-      </div>
-
       {categoryLoadError && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">分類の読み込みに失敗しました。</p>
@@ -620,6 +606,44 @@ export function KnowledgeEditPage() {
           </button>
         </div>
       </form>
+
+      <section
+        aria-labelledby="knowledge-edit-input-points-heading"
+        className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
+      >
+        <h2
+          id="knowledge-edit-input-points-heading"
+          className="mb-3 text-sm font-semibold text-slate-700"
+        >
+          入力時のポイント
+        </h2>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              タイトル
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              内容が伝わる短いタイトルにすると、あとから探しやすくなります。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              情報元
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              内容の由来に近いものを選ぶと、見返すときに役立ちます。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              記録内容
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              個人情報・社外秘・非公開情報は記録対象外です。
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

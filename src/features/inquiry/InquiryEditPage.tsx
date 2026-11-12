@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { getErrorMessage } from "../../lib/utils/error";
 import { CategoryRecord, listCategories } from "../taxonomy/categoryRepository";
 import { TagRecord, listTags } from "../taxonomy/tagRepository";
@@ -313,20 +313,6 @@ export function InquiryEditPage() {
           一覧へ戻る
         </Link>
       </div>
-
-      <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        <div className="flex gap-3">
-          <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-          <div>
-            <p className="font-semibold">編集時の注意</p>
-            <p className="mt-1">
-              顧客の氏名・連絡先・具体的な問い合わせ者情報は入力しないでください。
-              既存本文にそのような情報が含まれていないかも確認してください。
-            </p>
-          </div>
-        </div>
-      </div>
-
       {categoryLoadError && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-semibold">
@@ -619,6 +605,44 @@ export function InquiryEditPage() {
           </button>
         </div>
       </form>
+
+      <section
+        aria-labelledby="inquiry-edit-input-points-heading"
+        className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"
+      >
+        <h2
+          id="inquiry-edit-input-points-heading"
+          className="mb-3 text-sm font-semibold text-slate-700"
+        >
+          入力時のポイント
+        </h2>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              匿名化
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              個人や案件を特定できない形にすると、安心して振り返れます。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              対応メモ
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              確認したことや対応内容を整理すると、次の対応に役立ちます。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              次回活用
+            </span>
+            <p className="min-w-0 pt-0.5 leading-6 text-slate-600">
+              次に活かせそうな点を一言残すと、業務改善につながります。
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
